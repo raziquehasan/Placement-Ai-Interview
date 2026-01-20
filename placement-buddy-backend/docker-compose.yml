@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: placement-buddy-api
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/placementbuddy
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE=${JWT_EXPIRE:-7d}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - placement-buddy-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+
+  # Background Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: placement-buddy-worker
+    command: ["node", "src/queues/workers.js"]
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/placementbuddy
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - placement-buddy-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: placement-buddy-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    networks:
+      - placement-buddy-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redis_data:/data
+
+  # MongoDB
+  mongo:
+    image: mongo:6
+    container_name: placement-buddy-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=placementbuddy
+    networks:
+      - placement-buddy-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+
+networks:
+  placement-buddy-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  redis_data:
+    driver: local
