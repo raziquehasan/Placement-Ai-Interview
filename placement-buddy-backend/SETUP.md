@@ -18,8 +18,8 @@ npm install
 Copy `.env.example` to `.env` and update:
 ```env
 PORT=5000
-MONGO_URI=mongodb+srv://placementbuddy:placement123@placement.jrfeawz.mongodb.net/placementbuddy
-JWT_SECRET=placementbuddysecret
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
 REDIS_HOST=localhost
 REDIS_PORT=6379
 ```
