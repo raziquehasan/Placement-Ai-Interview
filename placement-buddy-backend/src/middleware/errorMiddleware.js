@@ -21,6 +21,15 @@ const errorHandler = (err, req, res, next) => {
     // Default to 500 if status code is 200 (success)
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
 
+    // Log the error
+    const logger = require('../utils/logger');
+    logger.error(`${err.message}`, {
+        stack: err.stack,
+        path: req.originalUrl,
+        method: req.method,
+        body: req.body
+    });
+
     res.status(statusCode).json({
         success: false,
         message: err.message,

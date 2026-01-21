@@ -13,13 +13,13 @@ const logger = require('../../utils/logger');
 const resumeWorker = new Worker(
     'resume-parsing',
     async (job) => {
-        const { file, userId } = job.data;
+        const { file, userId, resumeId } = job.data;
 
         try {
-            logger.info(`Processing resume job ${job.id} for user ${userId}`);
+            logger.info(`Processing resume job ${job.id} for user ${userId}, resumeId: ${resumeId}`);
 
             // Parse resume (this is the heavy operation)
-            const resume = await resumeService.parseResume(file, userId);
+            const resume = await resumeService.parseResume(file, userId, resumeId);
 
             logger.info(`Resume job ${job.id} completed successfully`);
 
@@ -36,10 +36,10 @@ const resumeWorker = new Worker(
     },
     {
         connection: redisConnection,
-        concurrency: 5, // Process 5 resumes concurrently
+        concurrency: 1, // Process 1 resume at a time to stay within free tier limits
         limiter: {
-            max: 10, // Max 10 jobs
-            duration: 1000 // per second
+            max: 5, // Max 5 jobs
+            duration: 60000 // per minute (safe for Gemini 15 RPM limit)
         }
     }
 );

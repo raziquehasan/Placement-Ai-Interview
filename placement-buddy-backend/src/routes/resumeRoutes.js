@@ -11,6 +11,13 @@ const { mongoIdValidation } = require('../utils/validators');
 const { validate } = require('../middleware/validationMiddleware');
 
 /**
+ * @route   GET /api/resumes
+ * @desc    Get all resumes for current user
+ * @access  Private
+ */
+router.get('/', authenticate, resumeController.getUserResumes);
+
+/**
  * @route   POST /api/resumes/upload
  * @desc    Upload and parse resume
  * @access  Private
@@ -25,10 +32,10 @@ router.post('/upload', authenticate, resumeController.upload.single('resume'), r
 router.get('/:id', authenticate, mongoIdValidation, validate, resumeController.getResume);
 
 /**
- * @route   GET /api/resumes/user/me
- * @desc    Get all resumes for current user
+ * @route   DELETE /api/resumes/:id
+ * @desc    Delete a resume
  * @access  Private
  */
-router.get('/user/me', authenticate, resumeController.getUserResumes);
+router.delete('/:id', authenticate, mongoIdValidation, validate, resumeController.deleteResume);
 
 module.exports = router;

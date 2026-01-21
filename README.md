@@ -1,99 +1,97 @@
-# Placement - AI Interview Simulator
+# Placement Buddy - AI Interview Engine 🚀
 
-A full-stack AI-powered interview preparation platform for college students.
+Placement Buddy is a full-stack, AI-powered interview preparation platform designed to help students and job seekers ace their dream jobs. The platform provides a realistic interview experience with real-time feedback, behavioral analysis, and technical evaluation.
+
+![Project Banner](https://img.shields.io/badge/Placement-Buddy-blue?style=for-the-badge&logo=rocket)
+![Tech Stack](https://img.shields.io/badge/MERN-Stack-green?style=for-the-badge&logo=mongodb)
+![AI Engine](https://img.shields.io/badge/AI-Google_Gemini-orange?style=for-the-badge&logo=google)
+
+## 🎥 Features
+
+### 1. Resume Analysis & ATS Scoring 📄
+- Upload your resume (PDF/DOCX) for a deep dive analysis.
+- Get an instant **ATS Score** and detailed feedback on improvements.
+- AI-driven suggestions for keywords, formatting, and content.
+
+### 2. Technical Interview Round (Phase 2.1) 💻
+- Real-time technical interview with an **AI Persona** (Senior Software Engineer).
+- Dynamic question generation based on your resume and job role.
+- Real-time evaluation of answers with feedback on core CS, DSA, and System Design.
+- Interactive **Timer** and **Progress Tracker**.
+
+### 3. HR Behavioral Round (Phase 2.2) 🤝
+- **Behavioral Interviews** focusing on the **STAR Method** (Situation, Task, Action, Result).
+- **Personality Profiling** and cultural fit analysis.
+- Real-time soft-skills evaluation (Communication, Leadership, Problem Solving).
+- Conversational AI persona providing an empathetic yet professional experience.
+
+### 4. Advanced Results Dashboard 📊
+- Multi-round performance overview.
+- Detailed breakdown of technical knowledge pillars.
+- Personality trait visualization and "Soft Skill Pulse".
+- Actionable recommendations for improvement.
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Framework**: React.js with Vite
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **State Management**: Context API
+- **Networking**: Axios
+
+### Backend
+- **Runtime**: Node.js & Express.js
+- **Database**: MongoDB (Mongoose)
+- **Background Jobs**: BullMQ + Redis (Upstash)
+- **AI Integration**: Google Gemini AI (OpenAI Fallback)
+- **Logging**: Winston & Morgan
+- **Documentation**: Swagger/OpenAPI
 
 ## 📁 Project Structure
 
 ```
 Placement/
-├── client/                          # Frontend (Coming Soon)
-└── placement-buddy-backend/         # Node.js Backend API
-    ├── src/
-    │   ├── config/                  # Configuration files
-    │   ├── models/                  # Mongoose models
-    │   ├── controllers/             # Request handlers
-    │   ├── services/                # Business logic
-    │   ├── routes/                  # API routes
-    │   ├── middleware/              # Custom middleware
-    │   ├── utils/                   # Utility functions
-    │   └── queues/                  # Background job queues
-    ├── Dockerfile                   # Docker configuration
-    ├── docker-compose.yml           # Multi-container setup
-    └── server.js                    # Entry point
+├── client/                          # React Frontend
+│   ├── src/
+│   │   ├── components/              # UI Components
+│   │   ├── pages/                   # Application Pages
+│   │   ├── services/                # API Services
+│   │   └── context/                 # State Management
+├── placement-buddy-backend/         # Node.js Backend API
+│   ├── src/
+│   │   ├── models/                  # Database Schemas
+│   │   ├── controllers/             # Business Logic
+│   │   ├── services/                # AI & External Integrations
+│   │   └── queues/                  # Background Worker
+└── README.md                        # Project Overview
 ```
 
-## 🚀 Backend Features
+## 🚀 Getting Started
 
-- ✅ RESTful API with Express.js
-- ✅ MongoDB database with Mongoose
-- ✅ JWT authentication
-- ✅ Background job processing (BullMQ + Redis)
-- ✅ Winston logging with daily rotation
-- ✅ Swagger API documentation
-- ✅ Docker containerization
-- ✅ API versioning (v1)
-- ✅ Production-ready architecture
+### Prerequisites
+- Node.js (v18+)
+- MongoDB Atlas or local MongoDB
+- Redis (Upstash recommended)
+- Google Gemini API Key or OpenAI API Key
 
-## 🛠 Tech Stack
+### Backend Setup
+1. `cd placement-buddy-backend`
+2. `npm install`
+3. `cp .env.example .env` (Add your API keys)
+4. `npm start`
 
-### Backend
-- **Runtime**: Node.js 20
-- **Framework**: Express.js
-- **Database**: MongoDB 6
-- **Cache/Queue**: Redis 7 (Upstash)
-- **Authentication**: JWT
-- **File Upload**: Multer
-- **Logging**: Winston + Morgan
-- **Documentation**: Swagger UI
-- **Background Jobs**: BullMQ
-- **Containerization**: Docker
+### Frontend Setup
+1. `cd client`
+2. `npm install`
+3. `npm run dev`
 
-## 📚 Documentation
-
-- [Backend Setup Guide](./placement-buddy-backend/SETUP.md)
-- [Docker Deployment](./placement-buddy-backend/DOCKER.md)
-- [API Documentation](http://localhost:5000/docs) (when running)
-
-## 🚀 Quick Start
-
-### Backend
-
-```bash
-cd placement-buddy-backend
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
-
-# Start server
-npm start
-
-# Or with Docker
-docker-compose up -d
-```
-
-### Access Points
-
-- **API**: http://localhost:5000/api/v1
-- **Swagger Docs**: http://localhost:5000/docs
-- **Health Check**: http://localhost:5000/
-
-## 🔐 Security
-
-- Environment variables for sensitive data
-- JWT token-based authentication
-- Password hashing with bcrypt
-- Input validation on all endpoints
-- CORS protection
-- Rate limiting ready
+## 👨‍💻 Roadmap
+- [x] Phase 1: Core Authentication & Resume Analysis
+- [x] Phase 2.1: Technical Round AI
+- [x] Phase 2.2: HR Round Behavioral Analysis
+- [ ] Phase 2.3: Live Coding Round (Coming Soon)
+- [ ] Phase 2.4: Hiring Decision Intelligence & PDF Reports
 
 ## 📝 License
-
-MIT
-
-## 👨‍💻 Author
-
-Placement Buddy Team
+MIT License. Created by the Placement Buddy Team.

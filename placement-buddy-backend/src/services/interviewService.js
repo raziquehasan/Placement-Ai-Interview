@@ -7,15 +7,17 @@ const Interview = require('../models/Interview');
 const Resume = require('../models/Resume');
 
 /**
- * Generate AI interview questions
- * This is a placeholder - integrate with OpenAI/Gemini in production
+ * Generate AI interview questions using Gemini
  * @param {String} jobRole - Job role
  * @param {String} difficulty - Difficulty level
  * @param {Object} resumeData - Parsed resume data
  * @returns {Array} List of questions
  */
 const generateQuestions = async (jobRole, difficulty, resumeData) => {
-    // Placeholder questions - replace with AI API call
+    const model = require('../utils/geminiClient');
+    const logger = require('../utils/logger');
+
+    // Fallback question bank in case AI fails
     const questionBank = {
         easy: [
             {
@@ -97,10 +99,75 @@ const generateQuestions = async (jobRole, difficulty, resumeData) => {
         ]
     };
 
-    // TODO: Replace with AI API call
-    // const aiQuestions = await callOpenAI(jobRole, difficulty, resumeData);
+    try {
+        // Prepare resume skills for the prompt
+        const skills = resumeData?.skills?.join(', ') || 'general skills';
+        const experience = resumeData?.experience?.map(exp => exp.title || exp.position).join(', ') || 'various experiences';
 
-    return questionBank[difficulty] || questionBank.medium;
+        // Create detailed prompt for Gemini
+        const prompt = `You are an expert AI interview coach specializing in technical interviews.
+
+Generate exactly 5 ${difficulty} level interview questions for a ${jobRole} candidate.
+
+Candidate's Resume Information:
+- Skills: ${skills}
+- Experience: ${experience}
+
+Requirements:
+1. Questions should be relevant to the ${jobRole} position
+2. Difficulty level: ${difficulty}
+3. Questions should reference the candidate's skills when appropriate
+4. Include a mix of technical, behavioral, and situational questions
+5. Each question should have a clear category
+
+Return ONLY a valid JSON array with this exact structure (no markdown, no code blocks):
+[
+  {
+    "questionId": "q1",
+    "question": "Your question here",
+    "category": "technical|behavioral|situational|general|communication",
+    "expectedAnswer": "Brief description of what a good answer should include"
+  }
+]
+
+Important: Use ONLY the categories technical, behavioral, situational, general, or communication.
+
+Generate 5 questions now:`;
+
+        logger.info('🤖 Generating AI interview questions with Gemini...');
+
+        // Call Gemini AI
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let responseText = response.text();
+
+        logger.info('✅ Received response from Gemini AI');
+
+        // Handle markdown-wrapped JSON (```json ... ```)
+        if (responseText.includes('```json')) {
+            responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        } else if (responseText.includes('```')) {
+            responseText = responseText.replace(/```\n?/g, '').trim();
+        }
+
+        // Parse JSON response
+        const aiQuestions = JSON.parse(responseText);
+
+        // Validate response structure
+        if (Array.isArray(aiQuestions) && aiQuestions.length > 0) {
+            logger.info(`✅ Successfully generated ${aiQuestions.length} AI questions`);
+            return aiQuestions;
+        } else {
+            throw new Error('Invalid AI response structure');
+        }
+
+    } catch (error) {
+        logger.error('❌ Error generating AI questions:', error.message);
+        logger.warn('⚠️ Falling back to placeholder questions');
+
+        // Fallback to placeholder questions
+        return questionBank[difficulty] || questionBank.medium;
+    }
 };
 
 /**

@@ -43,7 +43,38 @@ const resumeSchema = new mongoose.Schema({
                 type: Boolean,
                 default: false
             }
-        }]
+        }],
+        atsAnalysis: {
+            atsScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: 0
+            },
+            status: {
+                type: String,
+                enum: ['Shortlisted', 'Not Shortlisted', 'Pending'],
+                default: 'Pending'
+            },
+            strengths: {
+                type: [String],
+                default: []
+            },
+            weaknesses: {
+                type: [String],
+                default: []
+            },
+            improvementSuggestions: {
+                type: [String],
+                default: []
+            },
+            jobReadiness: {
+                type: String,
+                enum: ['High', 'Medium', 'Low', 'TBD'],
+                default: 'TBD'
+            },
+            analyzedAt: Date
+        }
     },
     uploadedAt: {
         type: Date,

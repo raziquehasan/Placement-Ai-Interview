@@ -14,7 +14,7 @@ const resumeQueue = new Queue('resume-parsing', {
         attempts: 3,
         backoff: {
             type: 'exponential',
-            delay: 2000
+            delay: 60000 // 1 minute backoff on failure
         },
         removeOnComplete: {
             age: 24 * 3600, // Keep completed jobs for 24 hours

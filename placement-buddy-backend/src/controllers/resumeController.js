@@ -54,16 +54,23 @@ const uploadResume = async (req, res, next) => {
             return errorResponse(res, 400, 'Please upload a PDF file');
         }
 
-        // Add job to queue instead of processing immediately
+        // 1. Create initial resume record in database with 'Pending' status
+        const resume = await resumeService.createInitialResume(req.file, req.user._id);
+
+        logger.info(`Initial resume record ${resume._id} created for user ${req.user._id}`);
+
+        // 2. Add job to queue with the EXISTING resume ID
         const job = await resumeQueue.add('parse-resume', {
+            resumeId: resume._id,
             file: req.file,
             userId: req.user._id
         });
 
-        logger.info(`Resume upload job ${job.id} queued for user ${req.user._id}`);
+        logger.info(`Resume processing job ${job.id} queued for resume ${resume._id}`);
 
         return successResponse(res, 202, 'Resume uploaded successfully. Processing in background.', {
             jobId: job.id,
+            resumeId: resume._id,
             status: 'processing',
             message: 'Your resume is being parsed. Check back shortly for results.'
         });
@@ -107,9 +114,28 @@ const getUserResumes = async (req, res, next) => {
     }
 };
 
+/**
+ * Delete a resume
+ * DELETE /api/resumes/:id
+ */
+const deleteResume = async (req, res, next) => {
+    try {
+        await resumeService.deleteResume(req.params.id, req.user._id);
+
+        return successResponse(res, 200, 'Resume deleted successfully');
+
+    } catch (error) {
+        if (error.message.includes('not found')) {
+            return errorResponse(res, 404, error.message);
+        }
+        next(error);
+    }
+};
+
 module.exports = {
     upload,
     uploadResume,
     getResume,
-    getUserResumes
+    getUserResumes,
+    deleteResume
 };

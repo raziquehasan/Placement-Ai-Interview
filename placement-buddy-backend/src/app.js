@@ -51,7 +51,43 @@ if (config.nodeEnv === 'development') {
 // ROUTES
 // ============================================
 
-// Health Check Route
+// Swagger API Documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Placement Buddy API Docs'
+}));
+
+// Health Check Endpoint
+app.get('/health', (req, res) => {
+    const uptime = process.uptime();
+    res.json({
+        status: 'ok',
+        service: 'Placement Buddy Backend',
+        uptime: `${Math.floor(uptime / 60)}m ${Math.floor(uptime % 60)}s`,
+        timestamp: new Date().toISOString(),
+        environment: config.nodeEnv
+    });
+});
+
+// API Base Route
+app.get('/api/v1', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Placement Buddy API v1 is running',
+        version: '1.0.0',
+        docs: '/docs',
+        health: '/health',
+        endpoints: {
+            auth: '/api/v1/auth',
+            users: '/api/v1/users',
+            resumes: '/api/v1/resumes',
+            interviews: '/api/v1/interviews',
+            feedback: '/api/v1/feedback'
+        }
+    });
+});
+
+// Root Health Check Route
 app.get('/', (req, res) => {
     res.json({
         success: true,

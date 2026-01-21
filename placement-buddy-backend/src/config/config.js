@@ -20,7 +20,7 @@ module.exports = {
     uploadPath: process.env.UPLOAD_PATH || './uploads',
 
     // CORS Configuration
-    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(origin => origin.trim()),
 
     // AI Service Configuration (Optional)
     openaiApiKey: process.env.OPENAI_API_KEY || '',
