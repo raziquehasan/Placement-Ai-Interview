@@ -53,7 +53,7 @@ const resumeSchema = new mongoose.Schema({
             },
             status: {
                 type: String,
-                enum: ['Shortlisted', 'Not Shortlisted', 'Pending'],
+                enum: ['Shortlisted', 'Not Shortlisted', 'Pending', 'Completed', 'Failed'],
                 default: 'Pending'
             },
             strengths: {

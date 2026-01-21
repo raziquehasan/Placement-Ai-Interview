@@ -5,6 +5,7 @@
 
 const { Worker } = require('bullmq');
 const redisConnection = require('../../config/redis');
+const TechnicalRound = require('../../models/TechnicalRound');
 const HRRound = require('../../models/HRRound');
 const {
     evaluateTechnicalAnswer,
@@ -238,6 +239,134 @@ async function processHRQuestionGeneration(job) {
     }
 }
 
+/**
+ * Process Code Execution and Review Job
+ * Executes test cases and performs AI code review
+ */
+async function processCodeExecution(job) {
+    const { roundId, code, language } = job.data;
+
+    try {
+        logger.info(`[Job ${job.id}] Executing ${language} code for round ${roundId}`);
+
+        const CodingRound = require('../../models/CodingRound');
+        const judge0Client = require('../../utils/judge0Client');
+        const { reviewCode } = require('../../services/aiInterviewService');
+
+        // Get coding round
+        const codingRound = await CodingRound.findById(roundId);
+        if (!codingRound) {
+            throw new Error('Coding round not found');
+        }
+
+        codingRound.status = 'evaluating';
+        await codingRound.save();
+
+        // Combine sample and hidden test cases
+        const allTestCases = [
+            ...codingRound.problem.sampleTestCases,
+            ...codingRound.problem.hiddenTestCases
+        ];
+
+        logger.info(`[Job ${job.id}] Running ${allTestCases.length} test cases...`);
+
+        // Execute all test cases
+        const testResults = await judge0Client.executeTestCases({
+            code,
+            language,
+            testCases: allTestCases
+        });
+
+        // Calculate test pass rate
+        const passedTests = testResults.filter(r => r.passed).length;
+        const totalTests = testResults.length;
+        const testPassRate = (passedTests / totalTests) * 100;
+
+        // Save test results
+        codingRound.testResults = {
+            totalTests,
+            passedTests,
+            failedTests: totalTests - passedTests,
+            testPassRate,
+            results: testResults,
+            executedAt: new Date()
+        };
+
+        await codingRound.save();
+
+        logger.info(`[Job ${job.id}] Test execution complete: ${passedTests}/${totalTests} passed (${testPassRate}%)`);
+
+        // Perform AI code review
+        logger.info(`[Job ${job.id}] Starting AI code review...`);
+
+        const codeReview = await reviewCode({
+            problem: codingRound.problem,
+            code,
+            language,
+            testResults: {
+                totalTests,
+                passedTests,
+                testPassRate,
+                results: testResults
+            }
+        });
+
+        // Save code review
+        codingRound.codeReview = {
+            correctness: codeReview.correctness,
+            efficiency: codeReview.efficiency,
+            readability: codeReview.readability,
+            edgeCases: codeReview.edgeCases,
+            timeComplexity: codeReview.timeComplexity,
+            spaceComplexity: codeReview.spaceComplexity,
+            strengths: codeReview.strengths,
+            improvements: codeReview.improvements,
+            bugs: codeReview.bugs || [],
+            feedback: codeReview.feedback,
+            overallScore: codeReview.overallScore,
+            reviewedAt: new Date()
+        };
+
+        // Calculate final score and complete round
+        codingRound.calculateFinalScore();
+        codingRound.completeRound();
+        await codingRound.save();
+
+        logger.info(`[Job ${job.id}] ✅ Code evaluation complete - Final Score: ${codingRound.finalScore}/100`);
+
+        return {
+            testPassRate,
+            codeQualityScore: codeReview.overallScore,
+            finalScore: codingRound.finalScore
+        };
+
+    } catch (error) {
+        logger.error(`[Job ${job.id}] ❌ Failed to execute code:`, error);
+
+        // Update status to failed
+        try {
+            const CodingRound = require('../../models/CodingRound');
+            const codingRound = await CodingRound.findById(roundId);
+            if (codingRound) {
+                codingRound.status = 'completed';
+                codingRound.testResults = {
+                    totalTests: 0,
+                    passedTests: 0,
+                    failedTests: 0,
+                    testPassRate: 0,
+                    results: [],
+                    executedAt: new Date()
+                };
+                await codingRound.save();
+            }
+        } catch (updateError) {
+            logger.error('Failed to update coding round status:', updateError);
+        }
+
+        throw error;
+    }
+}
+
 // Create Interview Worker
 const interviewWorker = new Worker('interview-processing', async (job) => {
     logger.info(`[Worker] Processing job ${job.id} - Type: ${job.name}`);
@@ -254,6 +383,9 @@ const interviewWorker = new Worker('interview-processing', async (job) => {
 
         case 'generate-hr-question':
             return await processHRQuestionGeneration(job);
+
+        case 'execute-code-tests':
+            return await processCodeExecution(job);
 
         default:
             throw new Error(`Unknown job type: ${job.name}`);

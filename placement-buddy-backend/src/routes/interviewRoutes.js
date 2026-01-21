@@ -28,6 +28,7 @@ router.get('/', authenticate, interviewController.getInterviewHistory);
  * @access  Private
  */
 router.get('/:id', authenticate, interviewController.getInterview);
+router.post('/:id/submit', authenticate, interviewController.submitBulkAnswers);
 
 // ============================================
 // Phase 2.1: Technical Round Endpoints
@@ -92,5 +93,41 @@ router.get('/:id/hr/evaluation/:questionId', authenticate, interviewController.g
  * @access  Private
  */
 router.get('/:id/hr/status', authenticate, interviewController.getHRStatus);
+
+// ============================================
+// Phase 2.3: Coding Round Endpoints
+// ============================================
+
+/**
+ * @route   POST /api/v1/interviews/:id/coding/start
+ * @desc    Start coding round with AI-generated problem
+ * @access  Private
+ */
+router.post('/:id/coding/start', authenticate, interviewController.startCodingRound);
+
+/**
+ * @route   POST /api/v1/interviews/:id/coding/submit
+ * @desc    Submit code solution for evaluation
+ * @access  Private
+ */
+router.post('/:id/coding/submit', authenticate, interviewController.submitCode);
+
+/**
+ * @route   GET /api/v1/interviews/:id/coding/results
+ * @desc    Get coding round test results and AI review (polling)
+ * @access  Private
+ */
+router.get('/:id/coding/results', authenticate, interviewController.getCodingResults);
+
+// ============================================
+// Phase 2.4: Final Hiring Report Endpoints
+// ============================================
+
+/**
+ * @route   GET /api/v1/interviews/:id/report
+ * @desc    Generate final hiring report with all round scores
+ * @access  Private
+ */
+router.get('/:id/report', authenticate, interviewController.getHiringReport);
 
 module.exports = router;

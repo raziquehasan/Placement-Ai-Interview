@@ -20,11 +20,13 @@ const Dashboard = () => {
 
     const [interviewForm, setInterviewForm] = useState({
         resumeId: '',
-        jobRole: 'Software Engineer',
-        difficulty: 'medium'
+        role: 'Software Engineer',
+        difficulty: 'Medium'
     });
 
     useEffect(() => {
+        let interval;
+
         const fetchData = async () => {
             try {
                 const [resumesArray, interviewsArray] = await Promise.all([
@@ -35,9 +37,26 @@ const Dashboard = () => {
                 setResumes(resumesArray || []);
                 setInterviews(interviewsArray || []);
 
-                if (resumesArray?.length > 0) {
+                if (resumesArray?.length > 0 && !interviewForm.resumeId) {
                     setInterviewForm(prev => ({ ...prev, resumeId: resumesArray[0]._id }));
                 }
+
+                // Polling logic: If any resume is Pending, poll every 5 seconds
+                const hasPending = resumesArray?.some(r => r.parsedData?.atsAnalysis?.status === 'Pending');
+                if (hasPending && !interval) {
+                    interval = setInterval(async () => {
+                        const updatedResumes = await resumeAPI.getResumes();
+                        setResumes(updatedResumes || []);
+
+                        const stillPending = updatedResumes?.some(r => r.parsedData?.atsAnalysis?.status === 'Pending');
+                        if (!stillPending) {
+                            clearInterval(interval);
+                        }
+                    }, 5000);
+                } else if (!hasPending && interval) {
+                    clearInterval(interval);
+                }
+
             } catch (err) {
                 console.error('Error fetching dashboard data:', err);
             } finally {
@@ -46,6 +65,10 @@ const Dashboard = () => {
         };
 
         fetchData();
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, []);
 
     const handleFileUpload = async (e) => {
@@ -97,7 +120,21 @@ const Dashboard = () => {
 
         try {
             const selectedResume = resumes.find(r => r._id === interviewForm.resumeId);
-            const atsScore = selectedResume?.parsedData?.atsAnalysis?.atsScore || 0;
+            const atsAnalysis = selectedResume?.parsedData?.atsAnalysis;
+            const atsScore = atsAnalysis?.atsScore || 0;
+            const status = atsAnalysis?.status || 'Pending';
+
+            if (status === 'Pending') {
+                alert('Resume analysis is still in progress. Please wait 10–20 seconds.');
+                navigate(`/resume-analysis/${interviewForm.resumeId}`);
+                return;
+            }
+
+            if (status === 'Failed') {
+                alert('Resume analysis failed. Please check the analysis page for details or re-upload your resume.');
+                navigate(`/resume-analysis/${interviewForm.resumeId}`);
+                return;
+            }
 
             if (atsScore < 60) {
                 alert(`Your resume ATS score is ${atsScore}%. You need at least 60% to unlock interviews. Please improve your resume first.`);
@@ -107,7 +144,7 @@ const Dashboard = () => {
 
             setStarting(true);
             const interview = await interviewAPI.startInterview(interviewForm);
-            navigate(`/interview/${interview._id}`);
+            navigate(`/interview/${interview.id || interview._id}`);
         } catch (err) {
             alert(err.message || 'Failed to start interview');
         } finally {
@@ -170,6 +207,10 @@ const Dashboard = () => {
                                                             {resume.parsedData.atsAnalysis.status === 'Pending' ? (
                                                                 <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-amber-50 text-amber-600 animate-pulse">
                                                                     Analyzing...
+                                                                </span>
+                                                            ) : resume.parsedData.atsAnalysis.status === 'Failed' ? (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-red-50 text-red-600">
+                                                                    Failed
                                                                 </span>
                                                             ) : (
                                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${resume.parsedData.atsAnalysis.atsScore >= 60 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -238,8 +279,8 @@ const Dashboard = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Target Job Role</label>
                                 <select
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                                    value={interviewForm.jobRole}
-                                    onChange={(e) => setInterviewForm({ ...interviewForm, jobRole: e.target.value })}
+                                    value={interviewForm.role}
+                                    onChange={(e) => setInterviewForm({ ...interviewForm, role: e.target.value })}
                                 >
                                     <option>Software Engineer</option>
                                     <option>Frontend Developer</option>
@@ -252,7 +293,7 @@ const Dashboard = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {['easy', 'medium', 'hard'].map(level => (
+                                    {['Easy', 'Medium', 'Hard'].map(level => (
                                         <button
                                             key={level}
                                             type="button"
@@ -301,7 +342,7 @@ const Dashboard = () => {
                                         {interviews.map(interview => (
                                             <tr key={interview._id} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="py-4">
-                                                    <div className="font-medium text-gray-900">{interview.jobRole}</div>
+                                                    <div className="font-medium text-gray-900">{interview.role || interview.jobRole}</div>
                                                     <div className="text-xs text-gray-500 capitalize">{interview.difficulty}</div>
                                                 </td>
                                                 <td className="py-4 text-sm text-gray-600">

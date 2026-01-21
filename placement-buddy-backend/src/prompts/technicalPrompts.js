@@ -8,7 +8,11 @@
  * @param {Object} params - Question generation parameters
  * @returns {String} - AI prompt for question generation
  */
-function generateQuestionPrompt({ resumeContext, role, category, difficulty, questionNumber }) {
+function generateQuestionPrompt({ resumeContext, role, category, difficulty, questionNumber, previousQuestions = [] }) {
+    const previousQuestionsContext = previousQuestions.length > 0
+        ? `PREVIOUS QUESTIONS ASKED (DO NOT REPEAT THESE OR ASK SIMILAR ONES):\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+        : 'No previous questions asked yet.';
+
     return `You are a Senior Software Engineer conducting a technical interview for the role of ${role}.
 
 CANDIDATE RESUME SUMMARY:
@@ -19,6 +23,8 @@ INTERVIEW CONTEXT:
 - Category: ${category}
 - Difficulty: ${difficulty}
 - Role: ${role}
+
+${previousQuestionsContext}
 
 CATEGORY DEFINITIONS:
 - "Core CS": Operating Systems, Networks, DBMS, OOP, Memory Management, Concurrency

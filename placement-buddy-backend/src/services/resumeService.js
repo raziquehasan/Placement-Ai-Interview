@@ -7,6 +7,8 @@ const Resume = require('../models/Resume');
 const pdfParse = require('pdf-parse');
 const fs = require('fs').promises;
 const model = require('../utils/geminiClient');
+const openai = require('../utils/openaiClient');
+const path = require('path');
 const logger = require('../utils/logger');
 
 /**
@@ -282,12 +284,35 @@ RULE: Score >= 60 is "Shortlisted".
 
 Return ONLY the JSON. No markdown, no pre-amble, no explanation.`;
 
-        logger.info(`🤖 Analyzing resume ${resumeId} with Gemini...`);
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        let responseText = response.text();
+        let responseText;
+        let provider = 'Gemini';
 
-        // Handle markdown-wrapped JSON
+        try {
+            logger.info(`🤖 Analyzing resume ${resumeId} with Gemini...`);
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            responseText = response.text();
+        } catch (geminiError) {
+            logger.warn(`⚠️ Gemini analysis failed for ${resumeId}: ${geminiError.message}. Trying OpenAI...`);
+
+            provider = 'OpenAI';
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: "gpt-4o-mini",
+                    messages: [
+                        { role: "system", content: "You are a Senior Technical Recruiter and ATS Specialist." },
+                        { role: "user", content: prompt }
+                    ],
+                    response_format: { type: "json_object" }
+                });
+                responseText = completion.choices[0].message.content;
+            } catch (openaiError) {
+                logger.error(`❌ OpenAI failover also failed for ${resumeId}: ${openaiError.message}`);
+                throw new Error(`All AI providers failed: ${openaiError.message}`);
+            }
+        }
+
+        // Handle markdown-wrapped JSON (mostly for Gemini, OpenAI with json_object should be clean)
         if (responseText.includes('```json')) {
             responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         } else if (responseText.includes('```')) {
@@ -295,8 +320,9 @@ Return ONLY the JSON. No markdown, no pre-amble, no explanation.`;
         }
 
         const rawAnalysis = JSON.parse(responseText);
+        logger.debug(`Raw ${provider} analysis for ${resumeId}:`, rawAnalysis);
 
-        // Robust Normalization of Keys (Handle variations Gemini might return)
+        // Robust Normalization of Keys
         const analysis = {
             atsScore: Number(rawAnalysis.atsScore || rawAnalysis.score || rawAnalysis.ats_score || 0),
             status: rawAnalysis.status || (rawAnalysis.atsScore >= 60 ? 'Shortlisted' : 'Not Shortlisted'),
@@ -316,12 +342,45 @@ Return ONLY the JSON. No markdown, no pre-amble, no explanation.`;
         resume.markModified('parsedData');
         await resume.save();
 
-        logger.info(`✅ Resume ${resumeId} analyzed successfully. Score: ${analysis.atsScore}, Status: ${analysis.status}`);
+        logger.info(`✅ Resume ${resumeId} analyzed successfully via ${provider}. Score: ${analysis.atsScore}, Status: ${analysis.status}`);
         return resume;
 
     } catch (error) {
-        logger.error(`❌ Resume analysis failed: ${error.message}`);
-        logger.debug(`Raw analysis error context:`, error);
+        logger.error(`❌ Resume analysis failed for ${resumeId}: ${error.message}`);
+
+        // DEV MODE FALLBACK (as requested in Step 5)
+        if (process.env.NODE_ENV === 'development') {
+            logger.warn(`⚠️ Using DEV FALLBACK for resume ${resumeId}`);
+            try {
+                const resume = await Resume.findById(resumeId);
+                if (resume) {
+                    resume.parsedData.atsAnalysis = {
+                        atsScore: 75,
+                        status: 'Shortlisted',
+                        strengths: ['Strong technical summary (Fallbacked)', 'Clear project descriptions'],
+                        weaknesses: ['Could improve keyword density'],
+                        improvementSuggestions: ['Add more specific metric-driven results'],
+                        jobReadiness: 'High',
+                        analyzedAt: new Date()
+                    };
+                    resume.markModified('parsedData');
+                    await resume.save();
+                    return resume;
+                }
+            } catch (fallbackError) {
+                logger.error(`Critical failure in fallback for ${resumeId}: ${fallbackError.message}`);
+            }
+        }
+
+        // Safety net: Update status to Failed
+        try {
+            await Resume.findByIdAndUpdate(resumeId, {
+                'parsedData.atsAnalysis.status': 'Failed'
+            });
+        } catch (updateError) {
+            logger.error(`Failed to update resume status to Failed: ${updateError.message}`);
+        }
+
         throw error;
     }
 };

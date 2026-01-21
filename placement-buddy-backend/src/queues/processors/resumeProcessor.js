@@ -31,6 +31,19 @@ const resumeWorker = new Worker(
 
         } catch (error) {
             logger.error(`Resume job ${job.id} failed:`, error);
+
+            // Safety net: Mark resume as Failed if we have the resumeId
+            if (resumeId) {
+                try {
+                    await Resume.findByIdAndUpdate(resumeId, {
+                        'parsedData.atsAnalysis.status': 'Failed'
+                    });
+                    logger.info(`Marked resume ${resumeId} as Failed due to job error`);
+                } catch (updateError) {
+                    logger.error(`Failed to update resume status: ${updateError.message}`);
+                }
+            }
+
             throw error; // Will trigger retry
         }
     },

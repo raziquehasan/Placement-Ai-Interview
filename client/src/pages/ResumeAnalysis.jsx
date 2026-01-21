@@ -13,10 +13,32 @@ const ResumeAnalysis = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        let interval;
+
         const fetchAnalysis = async () => {
             try {
                 const data = await resumeAPI.getResumeById(id);
                 setResume(data);
+
+                // If status is still pending, start polling
+                const status = data?.parsedData?.atsAnalysis?.status;
+                if (status === 'Pending' && !interval) {
+                    interval = setInterval(async () => {
+                        try {
+                            const updatedData = await resumeAPI.getResumeById(id);
+                            const updatedStatus = updatedData?.parsedData?.atsAnalysis?.status;
+
+                            if (updatedStatus !== 'Pending') {
+                                setResume(updatedData);
+                                clearInterval(interval);
+                            }
+                        } catch (err) {
+                            console.error('Polling error:', err);
+                        }
+                    }, 3000);
+                } else if (status !== 'Pending' && interval) {
+                    clearInterval(interval);
+                }
             } catch (err) {
                 setError(err.message || 'Failed to fetch analysis');
             } finally {
@@ -25,6 +47,10 @@ const ResumeAnalysis = () => {
         };
 
         fetchAnalysis();
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [id]);
 
     if (loading) return <div className="p-8"><LoadingSpinner size="lg" /></div>;
@@ -33,7 +59,45 @@ const ResumeAnalysis = () => {
 
     const analysis = resume.parsedData.atsAnalysis;
     const isPending = analysis.status === 'Pending';
-    const isShortlisted = analysis.status === 'Shortlisted';
+    const isShortlisted = analysis.status === 'Shortlisted' || (analysis.status === 'Completed' && analysis.atsScore >= 60);
+    const isFailed = analysis.status === 'Failed';
+
+    if (isFailed) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-10">
+                <div className="mb-8">
+                    <Link to="/dashboard" className="text-primary-600 hover:text-primary-700 font-medium flex items-center mb-2">
+                        <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to Dashboard
+                    </Link>
+                    <h1 className="text-3xl font-bold text-gray-900">Analysis Failed</h1>
+                    <p className="text-gray-500">{resume.fileName}</p>
+                </div>
+
+                <Card className="p-12 mb-8 border-l-8 border-red-500 bg-red-50/30 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-6">
+                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-red-900 mb-2">Something Went Wrong</h2>
+                    <p className="text-gray-700 max-w-md">
+                        We encountered an error while analyzing your resume. This could be due to a temporary AI service interruption or an issue with the file content.
+                    </p>
+                    <div className="mt-8 flex space-x-4">
+                        <Button variant="primary" onClick={() => window.location.reload()}>
+                            Try Again
+                        </Button>
+                        <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                            Upload Different File
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     if (isPending) {
         return (

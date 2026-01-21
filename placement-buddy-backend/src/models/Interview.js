@@ -30,7 +30,8 @@ const interviewSchema = new mongoose.Schema({
             'Frontend Developer',
             'Full Stack Developer',
             'Data Scientist',
-            'DevOps Engineer'
+            'DevOps Engineer',
+            'Product Manager'
         ],
         required: [true, 'Job role is required']
     },

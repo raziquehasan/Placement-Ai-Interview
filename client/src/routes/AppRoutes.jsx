@@ -9,6 +9,7 @@ import ResumeAnalysis from '../pages/ResumeAnalysis';
 import TechnicalRound from '../pages/TechnicalRound'; // Phase 2.1
 import HRRound from '../pages/HRRound'; // Phase 2.2
 import InterviewResults from '../pages/InterviewResults'; // Phase 2.1
+import HiringReport from '../pages/HiringReport'; // Phase 2.4
 import ProtectedRoute from './ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 
@@ -103,6 +104,16 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute>
                         <Feedback />
+                    </ProtectedRoute>
+                }
+            />
+
+            {/* Phase 2.4: Hiring Report */}
+            <Route
+                path="/report/:id"
+                element={
+                    <ProtectedRoute>
+                        <HiringReport />
                     </ProtectedRoute>
                 }
             />

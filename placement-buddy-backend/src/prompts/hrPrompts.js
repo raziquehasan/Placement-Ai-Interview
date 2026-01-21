@@ -1,108 +1,191 @@
 /**
- * HR Interview Prompts - Phase 2.2
+ * HR Interview Prompts - Phase 2.2 Enhanced
  * Templates for behavioral, situational, and culture-fit assessment
+ * Includes STAR evaluation, trait detection, and red flag analysis
  */
 
 /**
  * Generate a behavioral interview question
  */
 const generateHRQuestionPrompt = (resumeContext, role, category, questionNumber, totalQuestions) => `
-You are an experienced HR Manager conducting a behavioral interview for a ${role} position.
+You are a Senior HR Manager conducting a behavioral interview for a ${role} position.
 
-CANDIDATE BACKGROUND (Compressed Resume):
+CANDIDATE BACKGROUND (Resume Summary):
 ${resumeContext}
 
 INTERVIEW CONTEXT:
 - Question ${questionNumber} of ${totalQuestions}
 - Category: ${category}
-- Tone: Professional yet conversational and empathetic.
+- Tone: Professional, conversational, and empathetic
 
-CATEGORIES FOCUS:
-- Behavioral: STAR method (Situation, Task, Action, Result) based on past experiences.
-- Situational: Hypothetical "what would you do" scenarios.
-- Teamwork: Collaboration, conflict resolution.
-- Leadership: Initiative, mentoring, ownership.
-- Career Goals: Ambition, alignment with company long-term.
-- Culture Fit: Values, work style, ethics.
+CATEGORY FOCUS:
+- Behavioral: Past experiences using STAR method (Situation, Task, Action, Result)
+- Situational: Hypothetical "what would you do" scenarios
+- Teamwork: Collaboration, conflict resolution, cross-functional work
+- Leadership: Initiative, mentoring, ownership, decision-making
+- Communication: Clarity, persuasion, active listening
+- Career Goals: Ambition, alignment with company vision, growth mindset
+- Culture Fit: Values, work style, ethics, adaptability
 
 REQUIREMENTS:
-1. Make the question personalized. Reference candidate's specific projects, companies, or skills from the background.
-2. If it's a first question, start with a warm welcome reference.
-3. Aim to uncover specific soft skills like communication, resilience, or problem-solving.
+1. Personalize the question based on the candidate's resume (reference specific projects, companies, or skills)
+2. For first question, include a warm welcome
+3. Design to uncover specific soft skills: communication, resilience, problem-solving, emotional intelligence
+4. Frame questions to encourage STAR-format responses
 
-OUTPUT FORMAT (JSON):
+OUTPUT FORMAT (JSON only, no markdown):
 {
-  "questionText": "string",
+  "questionText": "Tell me about a time when you had to lead a team through a challenging project deadline. How did you ensure everyone stayed motivated and aligned?",
   "category": "${category}",
-  "evaluationFocus": ["point1", "point2"],
-  "expectedSTARComponents": {
-    "situation": "what context they should provide",
-    "action": "what specific steps they should mention",
-    "result": "what outcome should be highlighted"
-  }
+  "evaluationFocus": ["Leadership", "Communication", "Stress Management", "Team Motivation"]
 }
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 `;
 
 /**
- * Evaluate a behavioral answer
+ * Evaluate a behavioral answer with STAR method and trait detection
  */
 const evaluateHRAnswerPrompt = (question, evaluationFocus, userAnswer) => `
-You are an HR Manager evaluating a candidate's behavioral interview response.
+You are a Senior HR Manager evaluating a candidate's behavioral interview response.
 
-QUESTION: ${question}
-EVALUATION FOCUS: ${evaluationFocus.join(', ')}
+QUESTION ASKED:
+${question}
+
+EVALUATION FOCUS:
+${evaluationFocus.join(', ')}
 
 CANDIDATE'S ANSWER:
 ${userAnswer}
 
-EVALUATION CRITERIA:
-1. STAR Adherence: Did they provide Situation, Task, Action, and Result? (Authenticity)
-2. Clarity: How clearly was the story communicated?
-3. Confidence: Did they show ownership and belief in their actions?
-4. Relevance: Did the answer actually address the question?
-5. Key Takeaway: What soft skill did they demonstrate?
+EVALUATION CRITERIA (0-10 scale):
 
-OUTPUT FORMAT (JSON):
+1. **STAR Adherence (Authenticity)**: 
+   - Did they provide clear Situation, Task, Action, and Result?
+   - Was the story specific and believable?
+   
+2. **Clarity**: 
+   - How clearly was the story communicated?
+   - Was it well-structured and easy to follow?
+   
+3. **Confidence**: 
+   - Did they show ownership and belief in their actions?
+   - Was the tone assertive without being arrogant?
+   
+4. **Relevance**: 
+   - Did the answer directly address the question?
+   - Was the example appropriate for the role?
+
+TRAIT DETECTION:
+Identify which soft skills were demonstrated:
+- Leadership
+- Teamwork
+- Communication
+- Problem Solving
+- Adaptability
+- Emotional Intelligence
+- Conflict Resolution
+- Initiative
+
+RED FLAGS (if any):
+- Blaming others without accountability
+- Vague or generic answers
+- Lack of specific examples
+- Negative attitude
+- Poor communication skills
+- Inconsistencies in the story
+
+OUTPUT FORMAT (JSON only, no markdown):
 {
-  "score": number (0-10),
-  "confidence": number (0-10),
-  "clarity": number (0-10),
-  "relevance": number (0-10),
-  "authenticity": number (0-10),
-  "feedback": "string (gentle, constructive HR feedback)",
-  "softSkillsDemonstrated": ["skill1", "skill2"],
-  "concerns": ["potential red flags if any"],
-  "suggestedFollowUp": "string (short follow-up if specific STAR part is missing or detail is thin)"
+  "score": 8,
+  "confidence": 8,
+  "clarity": 7,
+  "relevance": 9,
+  "authenticity": 8,
+  "feedback": "Strong answer with clear STAR structure. You demonstrated excellent leadership by proactively addressing team concerns. Consider adding more specific metrics about the project outcome.",
+  "detectedTraits": ["Leadership", "Communication", "Problem Solving"],
+  "redFlags": [],
+  "suggestedFollowUp": "Can you tell me more about how you measured the success of your leadership approach?"
 }
+
+IMPORTANT: 
+- Be constructive and professional in feedback
+- Return ONLY valid JSON, no additional text or markdown formatting
 `;
 
 /**
- * Analyze personality traits based on the round conversation
+ * Analyze personality traits based on the complete HR round
  */
-const analyzePersonalityPrompt = (questionsAndAnswers) => `
-Analyze the following HR interview conversation to identify key personality traits and cultural fit.
+const analyzePersonalityPrompt = (questionsAndAnswers, role) => `
+You are a Senior HR Manager analyzing a candidate's complete behavioral interview for a ${role} position.
 
-CONVERSATION:
+COMPLETE INTERVIEW CONVERSATION:
 ${JSON.stringify(questionsAndAnswers, null, 2)}
 
-Provide a summary of the candidate's professional personality.
+ANALYSIS REQUIREMENTS:
+1. Identify key personality traits demonstrated across all answers
+2. Assess cultural fit for a modern tech company
+3. Detect patterns in communication style
+4. Evaluate overall professional maturity
+5. Provide hiring recommendation
 
-OUTPUT FORMAT (JSON):
+TRAIT SCORING (0-10):
+- Leadership: Ability to guide, inspire, and take ownership
+- Communication: Clarity, persuasion, active listening
+- Teamwork: Collaboration, empathy, conflict resolution
+- Adaptability: Flexibility, learning agility, resilience
+- Problem Solving: Analytical thinking, creativity, decision-making
+- Emotional Intelligence: Self-awareness, empathy, relationship management
+
+OUTPUT FORMAT (JSON only, no markdown):
 {
   "personalityTraits": [
-    { "trait": "Leadership", "score": number, "evidence": ["quote or action"] },
-    { "trait": "Communication", "score": number, "evidence": ["quote or action"] },
-    { "trait": "Teamwork", "score": number, "evidence": ["quote or action"] },
-    { "trait": "Adaptability", "score": number, "evidence": ["quote or action"] }
+    {
+      "trait": "Leadership",
+      "score": 8,
+      "evidence": ["Led team through project deadline", "Mentored junior developers"]
+    },
+    {
+      "trait": "Communication",
+      "score": 7,
+      "evidence": ["Clear explanation of conflict resolution", "Articulated vision to stakeholders"]
+    },
+    {
+      "trait": "Teamwork",
+      "score": 9,
+      "evidence": ["Collaborated across departments", "Resolved team conflicts diplomatically"]
+    },
+    {
+      "trait": "Adaptability",
+      "score": 8,
+      "evidence": ["Pivoted strategy when requirements changed", "Learned new technology quickly"]
+    }
   ],
-  "cultureFitScore": number (0-10),
-  "overallSummary": "string",
-  "recommendation": "string (Hire/Strong Hire/Reject/Consider)"
+  "cultureFitScore": 8,
+  "overallStrengths": [
+    "Strong leadership and team management skills",
+    "Excellent communication and stakeholder management",
+    "Demonstrated growth mindset and learning agility"
+  ],
+  "overallConcerns": [
+    "Limited experience with remote team management",
+    "Could improve on handling ambiguity"
+  ],
+  "overallSummary": "The candidate demonstrates strong soft skills with excellent leadership and communication abilities. They show a clear growth mindset and have successfully navigated complex team dynamics. Their STAR-based responses were authentic and well-structured.",
+  "recommendation": "Strong Hire"
 }
+
+RECOMMENDATION LEVELS:
+- "Strong Hire": Exceptional soft skills, perfect culture fit
+- "Hire": Good soft skills, strong culture fit
+- "Consider": Adequate skills but some concerns
+- "Reject": Significant red flags or poor fit
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 `;
 
 module.exports = {
-    generateHRQuestionPrompt,
-    evaluateHRAnswerPrompt,
-    analyzePersonalityPrompt
+  generateHRQuestionPrompt,
+  evaluateHRAnswerPrompt,
+  analyzePersonalityPrompt
 };
