@@ -16,6 +16,9 @@ const {
     analyzePersonalityPrompt
 } = require('../prompts/hrPrompts');
 const logger = require('../utils/logger');
+const { geminiLimiter, openaiLimiter } = require('../utils/rateLimiter');
+const { questionCache, evaluationCache, hrQuestionCache } = require('../utils/aiCache');
+const { getFallbackTechnicalQuestion, getFallbackHRQuestion } = require('../utils/fallbackQuestions');
 
 /**
  * Generate Technical Question using AI
@@ -24,6 +27,14 @@ const logger = require('../utils/logger');
  */
 async function generateTechnicalQuestion({ resumeContext, role, category, difficulty, questionNumber, previousQuestions = [] }) {
     try {
+        // Check cache first
+        const cacheKey = { role, category, difficulty, questionNumber: questionNumber % 3 }; // Cycle every 3 questions
+        const cached = await questionCache.get(cacheKey);
+        if (cached) {
+            logger.info(`📦 Using cached question for ${category}`);
+            return cached;
+        }
+
         const prompt = generateQuestionPrompt({
             resumeContext,
             role,
@@ -35,8 +46,13 @@ async function generateTechnicalQuestion({ resumeContext, role, category, diffic
 
         logger.info(`Generating ${difficulty} ${category} question for ${role} - Question #${questionNumber}`);
 
-        // Try Gemini first (faster and cheaper)
+        // Try Gemini first (faster and cheaper) with rate limiting
         try {
+            const rateLimitCheck = await geminiLimiter.checkLimit();
+            if (!rateLimitCheck.allowed) {
+                throw new Error(`Gemini rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+            }
+
             const result = await geminiClient.generateContent(prompt);
             const response = await result.response;
             const responseText = response.text();
@@ -49,16 +65,24 @@ async function generateTechnicalQuestion({ resumeContext, role, category, diffic
 
             const questionData = JSON.parse(jsonMatch[0]);
 
+            // Cache successful response
+            await questionCache.set(cacheKey, questionData);
+
             logger.info(`✅ Question generated successfully via Gemini`);
             return questionData;
 
         } catch (geminiError) {
             logger.warn(`Gemini failed, falling back to OpenAI: ${geminiError.message}`);
 
-            // Fallback to OpenAI
+            // Fallback to OpenAI with rate limiting
             try {
+                const rateLimitCheck = await openaiLimiter.checkLimit();
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(`OpenAI rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+                }
+
                 const completion = await openaiClient.chat.completions.create({
-                    model: 'gpt-4o-mini', // Upgraded to gpt-4o-mini
+                    model: 'gpt-4o-mini',
                     messages: [
                         { role: 'system', content: 'You are a senior software engineer conducting technical interviews.' },
                         { role: 'user', content: prompt }
@@ -71,29 +95,30 @@ async function generateTechnicalQuestion({ resumeContext, role, category, diffic
                 const responseText = completion.choices[0].message.content;
                 const questionData = JSON.parse(responseText);
 
+                // Cache successful response
+                await questionCache.set(cacheKey, questionData);
+
                 logger.info(`✅ Question generated successfully via OpenAI`);
                 return questionData;
             } catch (openaiError) {
                 logger.error(`❌ OpenAI also failed: ${openaiError.message}`);
 
-                // FINAL FALLBACK: Hardcoded question to prevent total failure
-                return {
-                    questionText: `Could you tell me about a challenging technical project you've worked on recently and the specific hurdles you faced?`,
-                    category: category,
-                    difficulty: difficulty,
-                    expectedAnswer: "Details about technical challenges, problem-solving approach, and technologies used.",
-                    evaluationRubric: [
-                        { point: "Complexity of the challenge", weight: 0.4 },
-                        { point: "Clarity of explanation", weight: 0.3 },
-                        { point: "Result or outcome", weight: 0.3 }
-                    ]
-                };
+                // FINAL FALLBACK: Use diverse fallback questions
+                logger.warn(`⚠️ Using fallback question bank for ${category} - Question #${questionNumber}`);
+                const fallbackQuestion = getFallbackTechnicalQuestion(category, questionNumber, difficulty);
+
+                // Cache fallback to reduce future failures
+                await questionCache.set(cacheKey, fallbackQuestion);
+
+                return fallbackQuestion;
             }
         }
 
     } catch (error) {
         logger.error('❌ Failed to generate question:', error);
-        throw new Error(`AI question generation failed: ${error.message}`);
+        // Return fallback instead of throwing
+        logger.warn(`⚠️ Exception caught - Using fallback question for ${category}`);
+        return getFallbackTechnicalQuestion(category, questionNumber, difficulty);
     }
 }
 
@@ -104,6 +129,17 @@ async function generateTechnicalQuestion({ resumeContext, role, category, diffic
  */
 async function evaluateTechnicalAnswer({ question, expectedAnswer, userAnswer, rubric }) {
     try {
+        // Check cache first (based on question + answer hash)
+        const cacheKey = {
+            question: question.substring(0, 100), // First 100 chars to avoid huge keys
+            answer: userAnswer.substring(0, 200)  // First 200 chars
+        };
+        const cached = await evaluationCache.get(cacheKey);
+        if (cached) {
+            logger.info(`📦 Using cached evaluation`);
+            return cached;
+        }
+
         const prompt = evaluateAnswerPrompt({
             question,
             expectedAnswer,
@@ -113,8 +149,13 @@ async function evaluateTechnicalAnswer({ question, expectedAnswer, userAnswer, r
 
         logger.info(`Evaluating answer for question: ${question.substring(0, 50)}...`);
 
-        // Try Gemini first
+        // Try Gemini first with rate limiting
         try {
+            const rateLimitCheck = await geminiLimiter.checkLimit();
+            if (!rateLimitCheck.allowed) {
+                throw new Error(`Gemini rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+            }
+
             const result = await geminiClient.generateContent(prompt);
             const responseText = result.response.text();
 
@@ -126,39 +167,78 @@ async function evaluateTechnicalAnswer({ question, expectedAnswer, userAnswer, r
 
             const evaluation = JSON.parse(jsonMatch[0]);
 
+            // Cache successful evaluation
+            await evaluationCache.set(cacheKey, evaluation);
+
             logger.info(`✅ Answer evaluated: Score ${evaluation.score}/10`);
             return evaluation;
 
         } catch (geminiError) {
             logger.warn(`Gemini failed, falling back to OpenAI: ${geminiError.message}`);
 
-            // Fallback to OpenAI
-            const completion = await openaiClient.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { role: 'system', content: 'You are a senior software engineer evaluating technical interview answers.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.3, // Lower temperature for consistent evaluation
-                max_tokens: 600
-            });
+            // Fallback to OpenAI with rate limiting
+            try {
+                const rateLimitCheck = await openaiLimiter.checkLimit();
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(`OpenAI rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+                }
 
-            const responseText = completion.choices[0].message.content;
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                const completion = await openaiClient.chat.completions.create({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: 'You are a senior software engineer evaluating technical interview answers.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.3, // Lower temperature for consistent evaluation
+                    max_tokens: 600
+                });
 
-            if (!jsonMatch) {
-                throw new Error('Invalid JSON response from OpenAI');
+                const responseText = completion.choices[0].message.content;
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+                if (!jsonMatch) {
+                    throw new Error('Invalid JSON response from OpenAI');
+                }
+
+                const evaluation = JSON.parse(jsonMatch[0]);
+
+                // Cache successful evaluation
+                await evaluationCache.set(cacheKey, evaluation);
+
+                logger.info(`✅ Answer evaluated: Score ${evaluation.score}/10`);
+                return evaluation;
+            } catch (openaiError) {
+                logger.error(`❌ Both AI providers failed for evaluation: ${openaiError.message}`);
+
+                // GRACEFUL FALLBACK: Return pending evaluation instead of failing
+                const fallbackEvaluation = {
+                    score: 5,
+                    feedback: "Your answer has been recorded. Due to high API demand, detailed evaluation is temporarily delayed. Please continue with the next question.",
+                    strengths: ["Answer submitted successfully"],
+                    weaknesses: [],
+                    missingPoints: [],
+                    isPending: true,
+                    evaluatedAt: new Date()
+                };
+
+                logger.warn(`⚠️ Returning pending evaluation due to API quota exhaustion`);
+                return fallbackEvaluation;
             }
-
-            const evaluation = JSON.parse(jsonMatch[0]);
-
-            logger.info(`✅ Answer evaluated: Score ${evaluation.score}/10`);
-            return evaluation;
         }
 
     } catch (error) {
         logger.error('❌ Failed to evaluate answer:', error);
-        throw new Error(`AI evaluation failed: ${error.message}`);
+
+        // Return graceful fallback instead of throwing
+        return {
+            score: 5,
+            feedback: "Evaluation temporarily unavailable. Your answer has been saved.",
+            strengths: ["Answer recorded"],
+            weaknesses: [],
+            missingPoints: [],
+            isPending: true,
+            evaluatedAt: new Date()
+        };
     }
 }
 
@@ -238,12 +318,25 @@ async function generateFollowUp({ originalQuestion, userAnswer, evaluation }) {
  */
 async function generateHRQuestion({ resumeContext, role, category, questionNumber, totalQuestions }) {
     try {
+        // Check cache first
+        const cacheKey = { role, category, questionNumber: questionNumber % 2 }; // Cycle every 2 questions
+        const cached = await hrQuestionCache.get(cacheKey);
+        if (cached) {
+            logger.info(`📦 Using cached HR question for ${category}`);
+            return cached;
+        }
+
         const prompt = generateHRQuestionPrompt(resumeContext, role, category, questionNumber, totalQuestions);
 
         logger.info(`Generating HR ${category} question for ${role} - Question #${questionNumber}`);
 
-        // Try Gemini first
+        // Try Gemini first with rate limiting
         try {
+            const rateLimitCheck = await geminiLimiter.checkLimit();
+            if (!rateLimitCheck.allowed) {
+                throw new Error(`Gemini rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+            }
+
             const result = await geminiClient.generateContent(prompt);
             const responseText = result.response.text();
 
@@ -251,31 +344,61 @@ async function generateHRQuestion({ resumeContext, role, category, questionNumbe
             if (!jsonMatch) throw new Error('Invalid JSON from Gemini');
 
             const questionData = JSON.parse(jsonMatch[0]);
+
+            // Cache successful response
+            await hrQuestionCache.set(cacheKey, questionData);
+
             logger.info(`✅ HR Question generated via Gemini`);
             return questionData;
 
         } catch (geminiError) {
             logger.warn(`Gemini failed for HR question, falling back: ${geminiError.message}`);
 
-            const completion = await openaiClient.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { role: 'system', content: 'You are an HR Manager conducting behavioral interviews.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 500
-            });
+            // Fallback to OpenAI with rate limiting
+            try {
+                const rateLimitCheck = await openaiLimiter.checkLimit();
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(`OpenAI rate limit exceeded. Retry after ${rateLimitCheck.retryAfter}s`);
+                }
 
-            const responseText = completion.choices[0].message.content;
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) throw new Error('Invalid JSON from OpenAI');
+                const completion = await openaiClient.chat.completions.create({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: 'You are an HR Manager conducting behavioral interviews.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500
+                });
 
-            return JSON.parse(jsonMatch[0]);
+                const responseText = completion.choices[0].message.content;
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('Invalid JSON from OpenAI');
+
+                const questionData = JSON.parse(jsonMatch[0]);
+
+                // Cache successful response
+                await hrQuestionCache.set(cacheKey, questionData);
+
+                return questionData;
+            } catch (openaiError) {
+                logger.error(`❌ OpenAI also failed for HR question: ${openaiError.message}`);
+
+                // FINAL FALLBACK: Use diverse fallback questions
+                logger.warn(`⚠️ Using fallback HR question bank for ${category} - Question #${questionNumber}`);
+                const fallbackQuestion = getFallbackHRQuestion(category, questionNumber);
+
+                // Cache fallback
+                await hrQuestionCache.set(cacheKey, fallbackQuestion);
+
+                return fallbackQuestion;
+            }
         }
     } catch (error) {
         logger.error('❌ Failed to generate HR question:', error);
-        throw new Error(`HR question generation failed: ${error.message}`);
+        // Return fallback instead of throwing
+        logger.warn(`⚠️ Exception caught - Using fallback HR question for ${category}`);
+        return getFallbackHRQuestion(category, questionNumber);
     }
 }
 

@@ -54,11 +54,12 @@ async function processAnswerEvaluation(job) {
             weaknesses: evaluation.weaknesses,
             missingPoints: evaluation.missingPoints || [],
             feedback: evaluation.feedback,
+            isPending: evaluation.isPending || false,
             evaluatedAt: new Date()
         };
 
-        // Generate follow-up if score < 7
-        if (shouldAskFollowUp(evaluation.score) && evaluation.suggestedFollowUp) {
+        // Generate follow-up if score < 7 and not pending
+        if (shouldAskFollowUp(evaluation.score) && evaluation.suggestedFollowUp && !evaluation.isPending) {
             question.hasFollowUp = true;
             question.followUpQuestion = evaluation.suggestedFollowUp;
 
@@ -68,17 +69,26 @@ async function processAnswerEvaluation(job) {
         // Update scores
         await round.updateScores();
 
-        logger.info(`[Job ${job.id}] ✅ Evaluation complete - Score: ${evaluation.score}/10`);
+        logger.info(`[Job ${job.id}] ✅ Evaluation complete - Score: ${evaluation.score}/10${evaluation.isPending ? ' (Pending)' : ''}`);
 
         return {
             questionId,
             score: evaluation.score,
+            isPending: evaluation.isPending || false,
             hasFollowUp: question.hasFollowUp,
             followUpQuestion: question.followUpQuestion
         };
 
     } catch (error) {
         logger.error(`[Job ${job.id}] ❌ Failed to evaluate answer:`, error);
+
+        // Don't retry on quota errors - they won't resolve with retries
+        if (error.message.includes('quota') || error.message.includes('rate limit')) {
+            logger.warn(`[Job ${job.id}] Quota/rate limit error - marking as complete to prevent retries`);
+            // Job will be marked as failed but won't retry
+            throw new Error('QUOTA_EXHAUSTED: ' + error.message);
+        }
+
         throw error;
     }
 }
@@ -99,13 +109,19 @@ async function processQuestionGeneration(job) {
             throw new Error('Technical round not found');
         }
 
-        // Generate question
+        // Get previously asked questions to avoid repetition
+        const previousQuestions = round.questions.map(q => q.questionText);
+
+        logger.info(`[Job ${job.id}] Previous questions count: ${previousQuestions.length}`);
+
+        // Generate question with context
         const questionData = await generateTechnicalQuestion({
             resumeContext: round.resumeContext,
             role: round.interviewId.role,
             category,
             difficulty,
-            questionNumber
+            questionNumber,
+            previousQuestions  // ✅ Pass previous questions to avoid repetition
         });
 
         // Add question to round
@@ -121,7 +137,7 @@ async function processQuestionGeneration(job) {
         round.questions.push(newQuestion);
         await round.save();
 
-        logger.info(`[Job ${job.id}] ✅ Question ${questionNumber} generated`);
+        logger.info(`[Job ${job.id}] ✅ Question ${questionNumber} generated - Category: ${questionData.category}`);
 
         return {
             questionId: newQuestion.questionId,

@@ -100,9 +100,34 @@ const startTechnicalRound = async (req, res, next) => {
             return errorResponse(res, 403, 'Unauthorized');
         }
 
-        // Check status
-        if (interview.status !== 'not_started') {
-            return errorResponse(res, 400, 'Interview already started');
+        // Check status - Allow resuming if technical round exists
+        if (interview.status !== 'not_started' && interview.status !== 'shortlisted') {
+            // If technical round already in progress, return existing round
+            if (interview.status === 'technical_in_progress' && interview.technicalRound) {
+                logger.info(`📝 Resuming existing technical round for interview ${id}`);
+                const existingRound = await TechnicalRound.findById(interview.technicalRound);
+
+                if (existingRound && existingRound.questions.length > 0) {
+                    // Find the current question (first unanswered)
+                    const currentQuestion = existingRound.questions.find(q => !q.userAnswer) ||
+                        existingRound.questions[existingRound.questions.length - 1];
+
+                    return successResponse(res, 200, 'Technical round resumed', {
+                        roundId: existingRound._id,
+                        totalQuestions: existingRound.totalQuestions,
+                        aiPersona: existingRound.aiPersona,
+                        firstQuestion: {
+                            questionId: currentQuestion.questionId,
+                            questionNumber: existingRound.questions.indexOf(currentQuestion) + 1,
+                            category: currentQuestion.category,
+                            difficulty: currentQuestion.difficulty,
+                            questionText: currentQuestion.questionText
+                        }
+                    });
+                }
+            }
+
+            return errorResponse(res, 400, `Interview already in ${interview.status} status. Cannot start technical round.`);
         }
 
         // Compress resume context for AI

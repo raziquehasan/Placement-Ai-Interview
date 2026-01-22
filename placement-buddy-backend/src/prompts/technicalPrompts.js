@@ -26,24 +26,37 @@ INTERVIEW CONTEXT:
 
 ${previousQuestionsContext}
 
-CATEGORY DEFINITIONS:
+CATEGORY DEFINITIONS & EXAMPLES:
 - "Core CS": Operating Systems, Networks, DBMS, OOP, Memory Management, Concurrency
+  Examples: "Explain virtual memory", "Difference between TCP and UDP", "How does deadlock occur?"
+  
 - "DSA": Data Structures, Algorithms, Complexity Analysis, Problem-Solving
+  Examples: "Implement binary search", "Find time complexity of QuickSort", "Reverse a linked list"
+  
 - "System Design": Architecture, Scalability, Trade-offs, Distributed Systems
+  Examples: "Design a URL shortener", "How would you scale a chat application?", "CAP theorem trade-offs"
+  
 - "Framework": React, Node.js, Django, etc. (based on resume skills)
+  Examples: "Explain React hooks lifecycle", "How does Express middleware work?", "Optimize React rendering"
+  
 - "Projects": Deep dive into candidate's resume projects, ask specific implementation questions
+  Examples: "In your [project], how did you handle [challenge]?", "Why did you choose [technology]?"
 
-INSTRUCTIONS:
-1. Generate ONE focused technical question for the "${category}" category
+CRITICAL INSTRUCTIONS:
+1. Generate ONE focused technical question STRICTLY for the "${category}" category
 2. Make it ${difficulty} difficulty level
-3. IMPORTANT: If the candidate has relevant projects or skills in their resume, reference them in your question
-4. For example: "I see you worked on [project name] using [technology]. How did you handle [specific challenge]?"
-5. The question should be realistic and match what a senior engineer would ask in a real interview
-6. Avoid generic questions - personalize based on the resume whenever possible
+3. DO NOT ask generic project questions for Core CS, DSA, or System Design categories
+4. For "${category}" category, ask a SPECIFIC technical question related to that domain
+5. ${previousQuestionsContext ? 'IMPORTANT: DO NOT repeat or ask similar questions to those already asked above' : ''}
+6. The question MUST be different from any previous questions
+7. Avoid generic questions like "tell me about a project" - be specific to the category
+
+EXAMPLES OF GOOD QUESTIONS FOR ${category}:
+${getCategoryExamples(category)}
 
 OUTPUT FORMAT (JSON):
 {
-  "questionText": "string - The actual interview question",
+  "questionText": "string - The actual interview question (MUST be specific to ${category})",
   "category": "${category}",
   "difficulty": "${difficulty}",
   "expectedAnswer": "string - Key points the candidate should cover in a good answer",
@@ -55,6 +68,41 @@ OUTPUT FORMAT (JSON):
 }
 
 IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.`;
+}
+
+/**
+ * Get category-specific examples
+ */
+function getCategoryExamples(category) {
+    const examples = {
+        'Core CS': `
+- "Explain the difference between process and thread with examples"
+- "How does virtual memory work in modern operating systems?"
+- "What is the difference between stack and heap memory?"
+- "Explain how a database index works internally"`,
+        'DSA': `
+- "Implement a function to reverse a linked list"
+- "Find the time complexity of merge sort and explain why"
+- "How would you detect a cycle in a linked list?"
+- "Implement binary search and analyze its complexity"`,
+        'System Design': `
+- "Design a URL shortening service like bit.ly"
+- "How would you design a rate limiter for an API?"
+- "Explain the trade-offs between SQL and NoSQL databases"
+- "Design a notification system for a social media platform"`,
+        'Framework': `
+- "Explain how React's virtual DOM works"
+- "What are the differences between useEffect and useLayoutEffect?"
+- "How does middleware work in Express.js?"
+- "Explain the event loop in Node.js"`,
+        'Projects': `
+- "In your [specific project], how did you handle [specific challenge]?"
+- "What was the most difficult bug you encountered in [project]?"
+- "How did you optimize performance in [project]?"
+- "Why did you choose [technology] for [project]?"`
+    };
+
+    return examples[category] || 'Ask a specific technical question for this category';
 }
 
 /**

@@ -11,17 +11,17 @@ const logger = require('../utils/logger');
 const interviewQueue = new Queue('interview-processing', {
     connection: redisConnection,
     defaultJobOptions: {
-        attempts: 3,
+        attempts: 3, // Max 3 retries
         backoff: {
             type: 'exponential',
-            delay: 2000
+            delay: 5000 // Start with 5s, then 10s, then 20s
         },
         removeOnComplete: {
             age: 24 * 3600, // Keep completed jobs for 24 hours
             count: 1000
         },
         removeOnFail: {
-            age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+            age: 7 * 24 * 3600 // Keep failed jobs for 7 days for debugging
         }
     }
 });
