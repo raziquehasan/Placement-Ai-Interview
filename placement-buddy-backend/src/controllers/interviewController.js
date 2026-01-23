@@ -426,24 +426,47 @@ const startHRRound = async (req, res, next) => {
 
         // Generate first HR question if empty
         if (hrRound.questions.length === 0) {
-            const questionData = await generateHRQuestion({
-                resumeContext: hrRound.resumeContext,
-                role: interview.role,
-                category: 'Behavioral',
-                questionNumber: 1,
-                totalQuestions: 8
-            });
+            try {
+                logger.info(`Generating first HR question for interview ${id}`);
+                const questionData = await generateHRQuestion({
+                    resumeContext: hrRound.resumeContext,
+                    role: interview.role,
+                    category: 'Behavioral',
+                    questionNumber: 1,
+                    totalQuestions: 8
+                });
 
-            hrRound.questions.push({
-                questionId: 'hr1',
-                category: questionData.category,
-                questionText: questionData.questionText,
-                evaluationFocus: questionData.evaluationFocus
-            });
-            await hrRound.save();
+                hrRound.questions.push({
+                    questionId: 'hr1',
+                    category: questionData.category,
+                    questionText: questionData.questionText,
+                    evaluationFocus: questionData.evaluationFocus
+                });
+                await hrRound.save();
+                logger.info(`✅ First HR question generated successfully`);
+            } catch (questionError) {
+                logger.error(`❌ Failed to generate first HR question:`, questionError);
+                // Ensure we always have a question - this should never happen due to fallbacks
+                // but adding extra safety
+                if (hrRound.questions.length === 0) {
+                    logger.warn(`⚠️ Adding emergency fallback HR question`);
+                    hrRound.questions.push({
+                        questionId: 'hr1',
+                        category: 'Behavioral',
+                        questionText: 'Tell me about a time when you had to work under a tight deadline. How did you manage it?',
+                        evaluationFocus: ['Time Management', 'Stress Handling', 'Prioritization']
+                    });
+                    await hrRound.save();
+                }
+            }
         }
 
         const firstQuestion = hrRound.questions[0];
+
+        if (!firstQuestion) {
+            logger.error(`❌ No first question found in HR round ${hrRound._id}`);
+            return errorResponse(res, 500, 'Failed to generate HR questions. Please try again.');
+        }
 
         return successResponse(res, 200, 'HR round started successfully', {
             roundId: hrRound._id,
@@ -458,6 +481,7 @@ const startHRRound = async (req, res, next) => {
         });
 
     } catch (error) {
+        logger.error(`❌ Error in startHRRound:`, error);
         next(error);
     }
 };
@@ -930,29 +954,29 @@ const getHiringReport = async (req, res, next) => {
             return errorResponse(res, 403, 'Unauthorized');
         }
 
-        // Check if all rounds are completed
-        if (!interview.technicalRound || !interview.hrRound || !interview.codingRound) {
-            return errorResponse(res, 400, 'All rounds must be completed to generate report');
+        // Check if at least one round has been started
+        if (!interview.technicalRound && !interview.hrRound && !interview.codingRound) {
+            return errorResponse(res, 400, 'No interview rounds have been started yet');
         }
 
-        if (interview.technicalRound.status !== 'completed' ||
-            interview.hrRound.status !== 'completed' ||
-            interview.codingRound.status !== 'completed') {
-            return errorResponse(res, 400, 'All rounds must be completed to generate report');
-        }
+        // Note: We allow partial reports - the reportGenerator will handle missing rounds gracefully
 
         // Generate report
         const { generateHiringReport } = require('../services/reportGenerator');
         const report = await generateHiringReport(interview);
 
-        // Update interview status
-        interview.status = 'completed';
-        interview.overallScore = report.scores.overall;
-        interview.hiringDecision = report.hiringDecision;
-        interview.completedAt = new Date();
-        await interview.save();
+        // Only update interview status if report is complete (not partial/in-progress)
+        if (report.status === 'completed') {
+            interview.status = 'completed';
+            interview.overallScore = report.scores.overall;
+            interview.hiringDecision = report.hiringDecision;
+            interview.completedAt = new Date();
+            await interview.save();
 
-        logger.info(`✅ Hiring report generated for interview ${id}: ${report.hiringDecision}`);
+            logger.info(`✅ Hiring report generated for interview ${id}: ${report.hiringDecision}`);
+        } else {
+            logger.info(`⚠️ Partial hiring report generated for interview ${id} - ${report.pendingEvaluations} evaluations pending`);
+        }
 
         return successResponse(res, 200, 'Hiring report generated successfully', { report });
 

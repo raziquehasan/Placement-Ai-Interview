@@ -105,12 +105,12 @@ const HiringReport = () => {
                             <div className="ml-4">
                                 <h2 className="text-3xl font-bold mb-1">{report.hiringDecision}</h2>
                                 <p className="text-lg">
-                                    {report.probability}% hiring probability • {report.roleReadiness}
+                                    {report.probability ? `${report.probability}% hiring probability • ` : ''}{report.roleReadiness || 'Evaluation in Progress'}
                                 </p>
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="text-5xl font-bold">{report.scores.overall.toFixed(1)}</div>
+                            <div className="text-5xl font-bold">{report.scores.overall ? report.scores.overall.toFixed(1) : '0.0'}</div>
                             <div className="text-sm">Overall Score</div>
                         </div>
                     </div>
@@ -206,7 +206,7 @@ const HiringReport = () => {
                                     />
                                 </svg>
                                 <div className="absolute text-2xl font-bold text-gray-900">
-                                    {report.scores.coding.toFixed(1)}
+                                    {report.scores.coding ? report.scores.coding.toFixed(1) : '0'}
                                 </div>
                             </div>
                             <h4 className="font-semibold text-gray-900 mb-1">Coding Round</h4>
@@ -216,42 +216,44 @@ const HiringReport = () => {
                 </div>
 
                 {/* Strengths & Weaknesses */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    {/* Strengths */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                            <TrendingUp className="w-6 h-6 text-green-600 mr-2" />
-                            Key Strengths
-                        </h3>
-                        <ul className="space-y-3">
-                            {report.overallStrengths.map((strength, idx) => (
-                                <li key={idx} className="flex items-start">
-                                    <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                                    <span className="text-gray-700">{strength}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                {report.overallStrengths && report.overallWeaknesses && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        {/* Strengths */}
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                <TrendingUp className="w-6 h-6 text-green-600 mr-2" />
+                                Key Strengths
+                            </h3>
+                            <ul className="space-y-3">
+                                {report.overallStrengths.map((strength, idx) => (
+                                    <li key={idx} className="flex items-start">
+                                        <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span className="text-gray-700">{strength}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
 
-                    {/* Weaknesses */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                            <TrendingDown className="w-6 h-6 text-yellow-600 mr-2" />
-                            Areas for Improvement
-                        </h3>
-                        <ul className="space-y-3">
-                            {report.overallWeaknesses.map((weakness, idx) => (
-                                <li key={idx} className="flex items-start">
-                                    <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
-                                    <span className="text-gray-700">{weakness}</span>
-                                </li>
-                            ))}
-                        </ul>
+                        {/* Weaknesses */}
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                <TrendingDown className="w-6 h-6 text-yellow-600 mr-2" />
+                                Areas for Improvement
+                            </h3>
+                            <ul className="space-y-3">
+                                {report.overallWeaknesses.map((weakness, idx) => (
+                                    <li key={idx} className="flex items-start">
+                                        <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span className="text-gray-700">{weakness}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Improvement Plan */}
-                {report.improvementPlan && (
+                {report.improvementPlan && report.status === 'completed' && (
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
                         <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                             <Sparkles className="w-7 h-7 text-primary-600 mr-2" />
@@ -268,8 +270,8 @@ const HiringReport = () => {
                                             <div className="flex items-center justify-between mb-3">
                                                 <h5 className="font-semibold text-gray-900">{gap.skill}</h5>
                                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${gap.priority === 'High' ? 'bg-red-100 text-red-800' :
-                                                        gap.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-green-100 text-green-800'
+                                                    gap.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-green-100 text-green-800'
                                                     }`}>
                                                     {gap.priority} Priority
                                                 </span>

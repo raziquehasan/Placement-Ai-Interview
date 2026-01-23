@@ -42,6 +42,12 @@ const Interview = () => {
                 return;
             }
 
+            // Redirect to HR round page ONLY if HR is in progress (not completed)
+            if (interviewData.status === 'hr_in_progress') {
+                navigate(`/interview/${id}/hr`);
+                return;
+            }
+
             // Start round if not started
             if (interviewData.status === 'not_started') {
                 const startedData = await interviewAPI.startTechnicalRound(id);
@@ -80,9 +86,18 @@ const Interview = () => {
                         }
                     }
                 }
-            } else if (interviewData.status.includes('hr')) {
-                // Restore HR round state if needed
-                setRoundComplete(interviewData.status === 'hr_completed');
+            } else if (interviewData.status === 'hr_completed') {
+                // HR completed, start coding round
+                try {
+                    const data = await interviewAPI.startCodingRound(id);
+                    setCodingProblem(data.problem);
+                    // Update interview status
+                    const updated = await interviewAPI.getInterview(id);
+                    setInterview(updated);
+                } catch (err) {
+                    console.error('Failed to start coding round:', err);
+                    alert('Failed to start coding round');
+                }
             } else if (interviewData.status.includes('coding')) {
                 // Restore coding round state - Phase 2.3
                 if (interviewData.status === 'coding_completed') {
@@ -171,18 +186,11 @@ const Interview = () => {
     const handleStartHRRound = async () => {
         try {
             setLoading(true);
-            const data = await interviewAPI.startHRRound(id);
-            setRoundData(data);
-            setCurrentQuestion(data.firstQuestion);
-            setRoundComplete(false);
-            setAnswer('');
-            setFeedback(null);
-            // Refresh interview status
-            const updated = await interviewAPI.getInterview(id);
-            setInterview(updated);
+            await interviewAPI.startHRRound(id);
+            // Navigate to HR round page
+            navigate(`/interview/${id}/hr`);
         } catch (err) {
             alert('Failed to start HR round');
-        } finally {
             setLoading(false);
         }
     };

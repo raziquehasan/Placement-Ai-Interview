@@ -105,8 +105,13 @@ const HRRound = () => {
                 questionTime
             );
 
-            // Update progress
-            setProgress(result.progress);
+            // Update progress - backend returns { answeredQuestions, totalQuestions, ... }
+            if (result.progress) {
+                setProgress({
+                    answered: result.progress.answeredQuestions,
+                    total: result.progress.totalQuestions
+                });
+            }
 
             // Clear draft
             localStorage.removeItem(`draft_hr_${currentQuestion.questionId}`);
@@ -244,7 +249,7 @@ const HRRound = () => {
 
                     {/* Editor */}
                     <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur opacity-10 group-hover:opacity-25 transition duration-1000"></div>
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur opacity-10 group-hover:opacity-25 transition duration-1000 pointer-events-none"></div>
                         <AnswerEditor
                             value={answer}
                             onChange={setAnswer}

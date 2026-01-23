@@ -503,13 +503,26 @@ async function analyzePersonality(questionsAndAnswers, role) {
  */
 async function generateCodingProblem({ role, difficulty, resumeSkills, questionNumber = 1 }) {
     try {
+        // Check cache first
+        const cacheKey = { role, difficulty, questionNumber };
+        const cached = await questionCache.get(cacheKey);
+        if (cached) {
+            logger.info(`📦 Using cached coding problem`);
+            return cached;
+        }
+
         const { generateCodingProblemPrompt } = require('../prompts/codingPrompts');
         const prompt = generateCodingProblemPrompt({ role, difficulty, resumeSkills, questionNumber });
 
         logger.info(`Generating ${difficulty} coding problem for ${role}`);
 
-        // Try Gemini first
+        // Try Gemini first with rate limiting
         try {
+            const rateLimitCheck = await geminiLimiter.checkLimit();
+            if (!rateLimitCheck.allowed) {
+                throw new Error(`Gemini rate limit exceeded`);
+            }
+
             const result = await geminiClient.generateContent(prompt);
             const responseText = result.response.text();
 
@@ -517,28 +530,92 @@ async function generateCodingProblem({ role, difficulty, resumeSkills, questionN
             if (!jsonMatch) throw new Error('Invalid JSON from Gemini');
 
             const problem = JSON.parse(jsonMatch[0]);
+
+            // Cache successful generation
+            await questionCache.set(cacheKey, problem);
+
             logger.info(`✅ Coding problem generated: ${problem.title}`);
             return problem;
 
         } catch (geminiError) {
             logger.warn(`Gemini failed for coding problem, falling back: ${geminiError.message}`);
 
-            const completion = await openaiClient.chat.completions.create({
-                model: 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: 'You are a senior software engineer creating coding interview problems.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 2000,
-                response_format: { type: "json_object" }
-            });
+            try {
+                const rateLimitCheck = await openaiLimiter.checkLimit();
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(`OpenAI rate limit exceeded`);
+                }
 
-            return JSON.parse(completion.choices[0].message.content);
+                const completion = await openaiClient.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: 'You are a senior software engineer creating coding interview problems.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000,
+                    response_format: { type: "json_object" }
+                });
+
+                const problem = JSON.parse(completion.choices[0].message.content);
+
+                // Cache successful generation
+                await questionCache.set(cacheKey, problem);
+
+                return problem;
+            } catch (openaiError) {
+                logger.error(`❌ Both AI providers failed, using fallback problem`);
+
+                // FALLBACK: Return a standard coding problem
+                const fallbackProblem = {
+                    title: "Two Sum",
+                    difficulty: difficulty || "medium",
+                    description: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.",
+                    inputFormat: "- `nums`: An array of integers\n- `target`: An integer",
+                    outputFormat: "An array of two integers representing the indices",
+                    constraints: "- 2 <= nums.length <= 10^4\n- -10^9 <= nums[i] <= 10^9\n- -10^9 <= target <= 10^9\n- Only one valid answer exists",
+                    sampleTestCases: [
+                        {
+                            input: "nums = [2,7,11,15], target = 9",
+                            output: "[0,1]",
+                            explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]"
+                        },
+                        {
+                            input: "nums = [3,2,4], target = 6",
+                            output: "[1,2]",
+                            explanation: "Because nums[1] + nums[2] == 6, we return [1, 2]"
+                        }
+                    ],
+                    hints: [
+                        "Try using a hash map to store numbers you've seen",
+                        "For each number, check if (target - number) exists in the hash map"
+                    ]
+                };
+
+                logger.warn(`⚠️ Returning fallback coding problem due to API quota`);
+                return fallbackProblem;
+            }
         }
     } catch (error) {
         logger.error('❌ Failed to generate coding problem:', error);
-        throw new Error(`Coding problem generation failed: ${error.message}`);
+
+        // Final fallback - return a simple problem instead of throwing
+        return {
+            title: "Reverse String",
+            difficulty: "easy",
+            description: "Write a function that reverses a string. The input string is given as an array of characters.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.",
+            inputFormat: "An array of characters",
+            outputFormat: "The same array, reversed",
+            constraints: "- 1 <= s.length <= 10^5\n- s[i] is a printable ascii character",
+            sampleTestCases: [
+                {
+                    input: '["h","e","l","l","o"]',
+                    output: '["o","l","l","e","h"]',
+                    explanation: "The string 'hello' becomes 'olleh'"
+                }
+            ],
+            hints: ["Use two pointers approach", "Swap characters from both ends"]
+        };
     }
 }
 

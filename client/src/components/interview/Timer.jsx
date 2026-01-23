@@ -3,11 +3,17 @@
  * Tracks question and overall round time
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock } from 'lucide-react';
 
 const Timer = ({ onTimeUpdate, isPaused = false, label = "Time" }) => {
     const [seconds, setSeconds] = useState(0);
+    const callbackRef = useRef(onTimeUpdate);
+
+    // Update ref when callback changes
+    useEffect(() => {
+        callbackRef.current = onTimeUpdate;
+    }, [onTimeUpdate]);
 
     useEffect(() => {
         if (isPaused) return;
@@ -15,15 +21,16 @@ const Timer = ({ onTimeUpdate, isPaused = false, label = "Time" }) => {
         const interval = setInterval(() => {
             setSeconds(s => {
                 const newTime = s + 1;
-                if (onTimeUpdate) {
-                    onTimeUpdate(newTime);
+                // Call via ref to avoid dependency issues
+                if (callbackRef.current) {
+                    callbackRef.current(newTime);
                 }
                 return newTime;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [isPaused, onTimeUpdate]);
+    }, [isPaused]);
 
     const formatTime = (totalSeconds) => {
         const mins = Math.floor(totalSeconds / 60);

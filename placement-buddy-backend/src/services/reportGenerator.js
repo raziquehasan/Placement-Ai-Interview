@@ -12,70 +12,70 @@ const openaiClient = require('../utils/openaiClient');
  * Technical: 40%, HR: 25%, Coding: 35%
  */
 function calculateOverallScore(technicalScore, hrScore, codingScore) {
-    const weights = {
-        technical: 0.40,
-        hr: 0.25,
-        coding: 0.35
-    };
+  const weights = {
+    technical: 0.40,
+    hr: 0.25,
+    coding: 0.35
+  };
 
-    const overall = (
-        (technicalScore * weights.technical) +
-        (hrScore * weights.hr) +
-        (codingScore * weights.coding)
-    );
+  const overall = (
+    (technicalScore * weights.technical) +
+    (hrScore * weights.hr) +
+    (codingScore * weights.coding)
+  );
 
-    return Math.round(overall * 100) / 100;
+  return Math.round(overall * 100) / 100;
 }
 
 /**
  * Determine Hiring Decision based on overall score
  */
 function getHiringDecision(overallScore) {
-    if (overallScore >= 85) {
-        return {
-            decision: 'Strong Hire',
-            probability: 95,
-            roleReadiness: 'Immediately Ready',
-            color: '#10b981' // green
-        };
-    } else if (overallScore >= 70) {
-        return {
-            decision: 'Hire',
-            probability: 80,
-            roleReadiness: 'Ready with Minor Onboarding',
-            color: '#3b82f6' // blue
-        };
-    } else if (overallScore >= 55) {
-        return {
-            decision: 'Consider',
-            probability: 50,
-            roleReadiness: 'Needs Development',
-            color: '#f59e0b' // amber
-        };
-    } else {
-        return {
-            decision: 'Reject',
-            probability: 20,
-            roleReadiness: 'Not Ready',
-            color: '#ef4444' // red
-        };
-    }
+  if (overallScore >= 85) {
+    return {
+      decision: 'Strong Hire',
+      probability: 95,
+      roleReadiness: 'Immediately Ready',
+      color: '#10b981' // green
+    };
+  } else if (overallScore >= 70) {
+    return {
+      decision: 'Hire',
+      probability: 80,
+      roleReadiness: 'Ready with Minor Onboarding',
+      color: '#3b82f6' // blue
+    };
+  } else if (overallScore >= 55) {
+    return {
+      decision: 'Consider',
+      probability: 50,
+      roleReadiness: 'Needs Development',
+      color: '#f59e0b' // amber
+    };
+  } else {
+    return {
+      decision: 'Reject',
+      probability: 20,
+      roleReadiness: 'Not Ready',
+      color: '#ef4444' // red
+    };
+  }
 }
 
 /**
  * Generate Improvement Plan using AI
  */
 async function generateImprovementPlan({
-    resume,
-    role,
-    technicalRound,
-    hrRound,
-    codingRound,
-    overallScore,
-    hiringDecision
+  resume,
+  role,
+  technicalRound,
+  hrRound,
+  codingRound,
+  overallScore,
+  hiringDecision
 }) {
-    try {
-        const prompt = `
+  try {
+    const prompt = `
 You are a Career Development Coach analyzing a candidate's interview performance.
 
 CANDIDATE PROFILE:
@@ -216,176 +216,241 @@ OUTPUT FORMAT (JSON only, no markdown):
 IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 `;
 
-        logger.info('Generating improvement plan with AI...');
+    logger.info('Generating improvement plan with AI...');
 
-        // Try Gemini first
-        try {
-            const result = await geminiClient.generateContent(prompt);
-            const responseText = result.response.text();
+    // Try Gemini first
+    try {
+      const result = await geminiClient.generateContent(prompt);
+      const responseText = result.response.text();
 
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) throw new Error('Invalid JSON from Gemini');
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Invalid JSON from Gemini');
 
-            const plan = JSON.parse(jsonMatch[0]);
-            logger.info('✅ Improvement plan generated via Gemini');
-            return plan;
+      const plan = JSON.parse(jsonMatch[0]);
+      logger.info('✅ Improvement plan generated via Gemini');
+      return plan;
 
-        } catch (geminiError) {
-            logger.warn(`Gemini failed, falling back to OpenAI: ${geminiError.message}`);
+    } catch (geminiError) {
+      logger.warn(`Gemini failed, falling back to OpenAI: ${geminiError.message}`);
 
-            const completion = await openaiClient.chat.completions.create({
-                model: 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: 'You are a career development coach creating personalized improvement plans for interview candidates.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 2500,
-                response_format: { type: "json_object" }
-            });
+      const completion = await openaiClient.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a career development coach creating personalized improvement plans for interview candidates.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2500,
+        response_format: { type: "json_object" }
+      });
 
-            const plan = JSON.parse(completion.choices[0].message.content);
-            logger.info('✅ Improvement plan generated via OpenAI');
-            return plan;
-        }
-
-    } catch (error) {
-        logger.error('❌ Failed to generate improvement plan:', error);
-
-        // Fallback to basic plan
-        return {
-            overallStrengths: ["Completed all interview rounds"],
-            overallWeaknesses: ["Needs improvement across multiple areas"],
-            improvementPlan: {
-                skillGaps: [
-                    {
-                        skill: "Technical Skills",
-                        currentLevel: Math.round(technicalRound.averageScore),
-                        targetLevel: 9,
-                        priority: "High",
-                        reasoning: "Focus on core technical concepts"
-                    }
-                ],
-                learningPath: [
-                    {
-                        phase: "90 Days",
-                        goals: ["Improve technical and soft skills"],
-                        resources: ["LeetCode", "System Design resources", "Mock interviews"],
-                        milestones: ["Practice regularly", "Track progress"]
-                    }
-                ],
-                recommendedCourses: ["AlgoExpert", "Grokking the System Design Interview"],
-                estimatedTimeToReady: "90 days"
-            }
-        };
+      const plan = JSON.parse(completion.choices[0].message.content);
+      logger.info('✅ Improvement plan generated via OpenAI');
+      return plan;
     }
+
+  } catch (error) {
+    logger.error('❌ Failed to generate improvement plan:', error);
+
+    // Fallback to basic plan
+    return {
+      overallStrengths: ["Completed all interview rounds"],
+      overallWeaknesses: ["Needs improvement across multiple areas"],
+      improvementPlan: {
+        skillGaps: [
+          {
+            skill: "Technical Skills",
+            currentLevel: Math.round(technicalRound.averageScore),
+            targetLevel: 9,
+            priority: "High",
+            reasoning: "Focus on core technical concepts"
+          }
+        ],
+        learningPath: [
+          {
+            phase: "90 Days",
+            goals: ["Improve technical and soft skills"],
+            resources: ["LeetCode", "System Design resources", "Mock interviews"],
+            milestones: ["Practice regularly", "Track progress"]
+          }
+        ],
+        recommendedCourses: ["AlgoExpert", "Grokking the System Design Interview"],
+        estimatedTimeToReady: "90 days"
+      }
+    };
+  }
 }
 
 /**
  * Generate Complete Hiring Report
  */
 async function generateHiringReport(interview) {
-    try {
-        logger.info(`Generating hiring report for interview ${interview._id}`);
+  try {
+    logger.info(`Generating hiring report for interview ${interview._id}`);
 
-        const technicalRound = interview.technicalRound;
-        const hrRound = interview.hrRound;
-        const codingRound = interview.codingRound;
+    const technicalRound = interview.technicalRound;
+    const hrRound = interview.hrRound;
+    const codingRound = interview.codingRound;
 
-        // Calculate overall score
-        const overallScore = calculateOverallScore(
-            technicalRound.totalScore,
-            hrRound.totalScore,
-            codingRound.finalScore
-        );
+    // Check if evaluations are pending
+    const hasPendingEvaluations = checkPendingEvaluations(technicalRound, hrRound);
 
-        // Determine hiring decision
-        const decision = getHiringDecision(overallScore);
+    if (hasPendingEvaluations.pending) {
+      logger.warn(`⚠️ Interview has ${hasPendingEvaluations.count} pending evaluations`);
 
-        // Generate improvement plan
-        const improvementData = await generateImprovementPlan({
-            resume: interview.resumeId,
-            role: interview.role,
-            technicalRound,
-            hrRound,
-            codingRound,
-            overallScore,
-            hiringDecision: decision.decision
-        });
+      // Return partial report with "In Progress" status
+      return {
+        interviewId: interview._id,
+        candidateName: interview.resumeId?.parsedData?.personalInfo?.name || 'Candidate',
+        role: interview.role,
+        difficulty: interview.difficulty,
 
-        // Compile final report
-        const report = {
-            interviewId: interview._id,
-            candidateName: interview.resumeId.parsedData?.personalInfo?.name || 'Candidate',
-            role: interview.role,
-            difficulty: interview.difficulty,
+        status: 'in_progress',
+        pendingEvaluations: hasPendingEvaluations.count,
+        message: 'Interview evaluations are still being processed. Please check back in a few minutes.',
 
-            // Scores
-            scores: {
-                technical: technicalRound.totalScore,
-                hr: hrRound.totalScore,
-                coding: codingRound.finalScore,
-                overall: overallScore
-            },
+        scores: {
+          technical: technicalRound?.totalScore || 0,
+          hr: hrRound?.totalScore || 0,
+          coding: codingRound?.finalScore || 0,
+          overall: 0
+        },
 
-            // Decision
-            hiringDecision: decision.decision,
-            probability: decision.probability,
-            roleReadiness: decision.roleReadiness,
+        hiringDecision: 'Evaluations Pending',
+        probability: null,
+        roleReadiness: 'Evaluation in Progress',
 
-            // Round Summaries
-            roundSummaries: {
-                technical: {
-                    questionsAnswered: technicalRound.answeredQuestions,
-                    averageScore: technicalRound.averageScore,
-                    scoreBreakdown: technicalRound.scoreBreakdown
-                },
-                hr: {
-                    questionsAnswered: hrRound.answeredQuestions,
-                    communicationSkills: hrRound.communicationSkills,
-                    cultureFit: hrRound.cultureFit,
-                    leadershipPotential: hrRound.leadershipPotential,
-                    personalityTraits: hrRound.personalityTraits
-                },
-                coding: {
-                    problemTitle: codingRound.problem.title,
-                    difficulty: codingRound.problem.difficulty,
-                    testPassRate: codingRound.testResults.testPassRate,
-                    codeQuality: codingRound.codeQualityScore,
-                    timeComplexity: codingRound.codeReview.timeComplexity,
-                    spaceComplexity: codingRound.codeReview.spaceComplexity
-                }
-            },
-
-            // Strengths & Weaknesses
-            overallStrengths: improvementData.overallStrengths,
-            overallWeaknesses: improvementData.overallWeaknesses,
-
-            // Improvement Plan
-            improvementPlan: improvementData.improvementPlan,
-
-            // Metadata
-            generatedAt: new Date(),
-            interviewDuration: {
-                technical: technicalRound.duration,
-                hr: hrRound.duration,
-                coding: codingRound.duration,
-                total: (technicalRound.duration || 0) + (hrRound.duration || 0) + (codingRound.duration || 0)
-            }
-        };
-
-        logger.info(`✅ Hiring report generated: ${decision.decision} (${overallScore}/100)`);
-        return report;
-
-    } catch (error) {
-        logger.error('❌ Failed to generate hiring report:', error);
-        throw new Error(`Report generation failed: ${error.message}`);
+        generatedAt: new Date()
+      };
     }
+
+    // All evaluations complete - generate full report
+    const overallScore = calculateOverallScore(
+      technicalRound?.totalScore || 0,
+      hrRound?.totalScore || 0,
+      codingRound?.finalScore || 0
+    );
+
+    // Determine hiring decision
+    const decision = getHiringDecision(overallScore);
+
+    // Generate improvement plan
+    const improvementData = await generateImprovementPlan({
+      resume: interview.resumeId,
+      role: interview.role,
+      technicalRound,
+      hrRound,
+      codingRound,
+      overallScore,
+      hiringDecision: decision.decision
+    });
+
+    // Compile final report
+    const report = {
+      interviewId: interview._id,
+      candidateName: interview.resumeId?.parsedData?.personalInfo?.name || 'Candidate',
+      role: interview.role,
+      difficulty: interview.difficulty,
+
+      status: 'completed',
+
+      // Scores
+      scores: {
+        technical: technicalRound?.totalScore || 0,
+        hr: hrRound?.totalScore || 0,
+        coding: codingRound?.finalScore || 0,
+        overall: overallScore
+      },
+
+      // Decision
+      hiringDecision: decision.decision,
+      probability: decision.probability,
+      roleReadiness: decision.roleReadiness,
+
+      // Round Summaries
+      roundSummaries: {
+        technical: {
+          questionsAnswered: technicalRound?.answeredQuestions || 0,
+          averageScore: technicalRound?.averageScore || 0,
+          scoreBreakdown: technicalRound?.scoreBreakdown || {}
+        },
+        hr: {
+          questionsAnswered: hrRound?.answeredQuestions || 0,
+          communicationSkills: hrRound?.communicationSkills || 0,
+          cultureFit: hrRound?.cultureFit || 0,
+          leadershipPotential: hrRound?.leadershipPotential || 0,
+          personalityTraits: hrRound?.personalityTraits || []
+        },
+        coding: {
+          problemTitle: codingRound?.problem?.title || 'N/A',
+          difficulty: codingRound?.problem?.difficulty || 'N/A',
+          testPassRate: codingRound?.testResults?.testPassRate || 0,
+          codeQuality: codingRound?.codeQualityScore || 0,
+          timeComplexity: codingRound?.codeReview?.timeComplexity || 'N/A',
+          spaceComplexity: codingRound?.codeReview?.spaceComplexity || 'N/A'
+        }
+      },
+
+      // Strengths & Weaknesses
+      overallStrengths: improvementData.overallStrengths,
+      overallWeaknesses: improvementData.overallWeaknesses,
+
+      // Improvement Plan
+      improvementPlan: improvementData.improvementPlan,
+
+      // Metadata
+      generatedAt: new Date(),
+      interviewDuration: {
+        technical: technicalRound?.duration || 0,
+        hr: hrRound?.duration || 0,
+        coding: codingRound?.duration || 0,
+        total: (technicalRound?.duration || 0) + (hrRound?.duration || 0) + (codingRound?.duration || 0)
+      }
+    };
+
+    logger.info(`✅ Hiring report generated: ${decision.decision} (${overallScore}/100)`);
+    return report;
+
+  } catch (error) {
+    logger.error('❌ Failed to generate hiring report:', error);
+    throw new Error(`Report generation failed: ${error.message}`);
+  }
+}
+
+/**
+ * Check if there are pending evaluations
+ */
+function checkPendingEvaluations(technicalRound, hrRound) {
+  let pendingCount = 0;
+
+  // Check technical round
+  if (technicalRound?.questions) {
+    for (const q of technicalRound.questions) {
+      if (q.userAnswer && (!q.aiEvaluation || !q.aiEvaluation.evaluatedAt)) {
+        pendingCount++;
+      }
+    }
+  }
+
+  // Check HR round
+  if (hrRound?.questions) {
+    for (const q of hrRound.questions) {
+      if (q.userAnswer && (!q.aiEvaluation || !q.aiEvaluation.evaluatedAt)) {
+        pendingCount++;
+      }
+    }
+  }
+
+  return {
+    pending: pendingCount > 0,
+    count: pendingCount
+  };
 }
 
 module.exports = {
-    calculateOverallScore,
-    getHiringDecision,
-    generateImprovementPlan,
-    generateHiringReport
+  calculateOverallScore,
+  getHiringDecision,
+  generateImprovementPlan,
+  generateHiringReport,
+  checkPendingEvaluations
 };
