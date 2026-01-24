@@ -1,66 +1,37 @@
-/**
- * Authentication Middleware
- * Handles JWT verification and role-based access control
- */
-
-const { verifyToken } = require('../utils/jwtUtils');
-const { errorResponse } = require('../utils/responseUtils');
-const User = require('../models/User');
+const admin = require('../config/firebase-admin');
 
 /**
- * Authenticate user via JWT token
- * Adds user object to request
+ * Middleware to verify Firebase ID tokens
+ * Expects header: Authorization: Bearer <token>
  */
 const authenticate = async (req, res, next) => {
-    try {
-        // Get token from header
-        const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return errorResponse(res, 401, 'No token provided, authorization denied');
-        }
-
-        // Extract token
-        const token = authHeader.split(' ')[1];
-
-        // Verify token
-        const decoded = verifyToken(token);
-
-        // Get user from database (exclude password)
-        const user = await User.findById(decoded.userId).select('-password');
-
-        if (!user) {
-            return errorResponse(res, 401, 'User not found, authorization denied');
-        }
-
-        // Attach user to request
-        req.user = user;
-        next();
-
-    } catch (error) {
-        return errorResponse(res, 401, 'Invalid token, authorization denied');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized: No token provided'
+        });
     }
-};
 
-/**
- * Authorize based on user roles
- * @param  {...String} roles - Allowed roles
- */
-const authorize = (...roles) => {
-    return (req, res, next) => {
-        if (!req.user) {
-            return errorResponse(res, 401, 'User not authenticated');
-        }
+    const idToken = authHeader.split('Bearer ')[1];
 
-        if (!roles.includes(req.user.role)) {
-            return errorResponse(res, 403, `Access denied. Required role: ${roles.join(' or ')}`);
-        }
-
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        req.user = decodedToken;
         next();
-    };
+    } catch (error) {
+        console.error('Error verifying Firebase token:', error);
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized: Invalid token',
+            error: error.code
+        });
+    }
 };
 
 module.exports = {
     authenticate,
-    authorize
+    // Exporting as authMiddleware as well just in case
+    authMiddleware: authenticate
 };

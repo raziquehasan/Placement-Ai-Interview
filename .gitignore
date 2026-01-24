@@ -49,3 +49,12 @@ coverage/
 # Misc
 *.pem
 .vercel
+.agent/
+brain/
+
+# Firebase & Credentials
+credentials/
+firebase-service.json
+serviceAccountKey.json
+*.json.local
+.firebase/

@@ -1,49 +1,79 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Rocket, Github, Linkedin, Twitter } from 'lucide-react';
+
 const Footer = () => {
+    const currentYear = new Date().getFullYear();
+
     return (
-        <footer className="bg-gray-900 text-gray-300 mt-auto">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Brand */}
-                    <div>
-                        <div className="flex items-center space-x-2 mb-4">
-                            <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-secondary-600 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold text-xl">P</span>
+        <footer className="bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900 pt-20 pb-10">
+            <div className="container px-4 mx-auto">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-16">
+                    {/* Brand column */}
+                    <div className="col-span-2">
+                        <Link to="/" className="flex items-center gap-2 mb-6">
+                            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white">
+                                <Rocket size={16} fill="currentColor" />
                             </div>
-                            <span className="text-xl font-bold text-white">Placement Buddy</span>
-                        </div>
-                        <p className="text-sm text-gray-400">
-                            AI-powered interview preparation platform to help you ace your next job interview.
+                            <span className="text-xl font-bold dark:text-white">PlacementBuddy</span>
+                        </Link>
+                        <p className="text-slate-500 dark:text-slate-400 max-w-xs mb-8 leading-relaxed">
+                            Empowering the next generation of software engineers with world-class AI interview preparation.
                         </p>
+                        <div className="flex items-center gap-4">
+                            <a href="#" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-primary-600 hover:border-primary-500 transition-all">
+                                <Github size={18} />
+                            </a>
+                            <a href="#" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-primary-600 hover:border-primary-500 transition-all">
+                                <Linkedin size={18} />
+                            </a>
+                            <a href="#" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-primary-600 hover:border-primary-500 transition-all">
+                                <Twitter size={18} />
+                            </a>
+                        </div>
                     </div>
 
-                    {/* Quick Links */}
+                    {/* Product */}
                     <div>
-                        <h3 className="text-white font-semibold mb-4">Quick Links</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li>
-                                <a href="/" className="hover:text-primary-400 transition-colors">Home</a>
-                            </li>
-                            <li>
-                                <a href="/dashboard" className="hover:text-primary-400 transition-colors">Dashboard</a>
-                            </li>
-                            <li>
-                                <a href="/login" className="hover:text-primary-400 transition-colors">Login</a>
-                            </li>
+                        <h4 className="font-bold mb-6 dark:text-white">Product</h4>
+                        <ul className="space-y-4">
+                            <li><a href="#features" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Features</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">AI Coaching</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Pricing</a></li>
                         </ul>
                     </div>
 
-                    {/* Contact */}
+                    {/* Resources */}
                     <div>
-                        <h3 className="text-white font-semibold mb-4">Contact</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li className="text-gray-400">support@placementbuddy.com</li>
-                            <li className="text-gray-400">© 2026 Placement Buddy</li>
+                        <h4 className="font-bold mb-6 dark:text-white">Resources</h4>
+                        <ul className="space-y-4">
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Docs</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Blog</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Community</a></li>
+                        </ul>
+                    </div>
+
+                    {/* Legal */}
+                    <div>
+                        <h4 className="font-bold mb-6 dark:text-white">Legal</h4>
+                        <ul className="space-y-4">
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Privacy</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Terms</a></li>
+                            <li><a href="#" className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Security</a></li>
                         </ul>
                     </div>
                 </div>
 
-                <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-                    <p>Built with ❤️ for aspiring professionals</p>
+                <div className="pt-10 border-t border-slate-100 dark:border-slate-900 flex flex-col md:row items-center justify-between gap-6">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        © {currentYear} PlacementBuddy AI. All rights reserved.
+                    </p>
+                    <div className="flex items-center gap-6">
+                        <span className="flex items-center gap-2 text-xs font-medium text-slate-400">
+                            <div className="w-2 h-2 rounded-full bg-success-500" />
+                            System Status: Online
+                        </span>
+                    </div>
                 </div>
             </div>
         </footer>

@@ -44,6 +44,9 @@ coverage/
 *.pem
 *.key
 *.crt
+credentials/
+firebase-service.json
+serviceAccountKey.json
 
 # Docker secrets
 .env.docker

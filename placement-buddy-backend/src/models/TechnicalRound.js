@@ -195,8 +195,6 @@ const technicalRoundSchema = new mongoose.Schema({
 // ============================================
 // INDEXES (Critical for performance)
 // ============================================
-technicalRoundSchema.index({ interviewId: 1 });
-technicalRoundSchema.index({ status: 1 });
 technicalRoundSchema.index({ createdAt: -1 });
 
 // ============================================

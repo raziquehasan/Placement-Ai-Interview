@@ -77,7 +77,6 @@ const feedbackSchema = new mongoose.Schema({
 // INDEXES (Critical for scale)
 // ============================================
 feedbackSchema.index({ userId: 1 }); // Fast lookup by user
-feedbackSchema.index({ interviewId: 1 }); // Fast lookup by interview
 feedbackSchema.index({ generatedAt: -1 }); // Sort by date
 
 module.exports = mongoose.model('Feedback', feedbackSchema);

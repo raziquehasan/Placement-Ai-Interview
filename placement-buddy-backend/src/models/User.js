@@ -61,7 +61,6 @@ const userSchema = new mongoose.Schema({
 // ============================================
 // INDEXES (Critical for scale)
 // ============================================
-userSchema.index({ email: 1 }); // Unique index already created by unique: true
 
 // ============================================
 // MIDDLEWARE

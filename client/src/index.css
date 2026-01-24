@@ -2,47 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS Variables */
-:root {
-  --color-primary: #3B82F6;
-  --color-secondary: #8B5CF6;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
+@layer base {
+  :root {
+    --brand-primary: 59 130 246;
+    --brand-secondary: 168 85 247;
+    --background: 255 255 255;
+    --foreground: 15 23 42;
+  }
+
+  .dark {
+    --background: 2 6 23;
+    --foreground: 248 250 252;
+  }
+
+  body {
+    @apply bg-white text-slate-900 selection:bg-primary-200 selection:text-primary-900;
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-50;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight text-slate-900;
+  }
+
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4,
+  .dark h5,
+  .dark h6 {
+    @apply text-slate-50;
+  }
 }
 
-/* Base Styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/70 border border-white/20 shadow-xl;
+  }
+
+  .dark .glass-card {
+    @apply backdrop-blur-xl bg-slate-900/50 border border-slate-800/50 shadow-2xl;
+  }
+
+  .gradient-border {
+    @apply relative p-[1px] overflow-hidden rounded-2xl;
+    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.1));
+  }
+
+  .btn-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+
+  .btn-glow::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300 bg-white/20;
+  }
+
+  .btn-glow:hover::after {
+    @apply opacity-100;
+  }
 }
 
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 via-secondary-500 to-primary-500;
+  }
 }
 
-/* Smooth Scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar improvements */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  @apply bg-slate-200 dark:bg-slate-800 rounded-full border-4 border-solid border-white dark:border-slate-950;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  @apply bg-slate-300 dark:bg-slate-700;
 }

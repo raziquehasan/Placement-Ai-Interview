@@ -34,4 +34,10 @@ module.exports = {
     redisHost: process.env.REDIS_HOST || 'localhost',
     redisPort: parseInt(process.env.REDIS_PORT) || 6379,
     redisPassword: process.env.REDIS_PASSWORD || '',
+
+    // Firebase Configuration
+    firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
+    firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
+    firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY || '',
+    firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '',
 };

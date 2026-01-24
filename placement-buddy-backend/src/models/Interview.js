@@ -164,7 +164,6 @@ const interviewSchema = new mongoose.Schema({
 // INDEXES (Critical for scale)
 // ============================================
 interviewSchema.index({ userId: 1, status: 1 });
-interviewSchema.index({ status: 1 });
 interviewSchema.index({ startedAt: -1 });
 interviewSchema.index({ createdAt: -1 });
 
