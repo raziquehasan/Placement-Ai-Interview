@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Play, Code, Clock, CheckCircle, XCircle } from 'lucide-react';
 
-const CodingEditor = ({ problem, onSubmit, isSubmitting }) => {
+const CodingEditor = ({ problem, onSubmit, isSubmitting, onCodeChange }) => {
     const [code, setCode] = useState('');
     const [language, setLanguage] = useState('javascript');
     const [startTime] = useState(Date.now());
@@ -18,13 +18,20 @@ const CodingEditor = ({ problem, onSubmit, isSubmitting }) => {
 
     useEffect(() => {
         if (problem) {
-            setCode(templates[language]);
+            // Restore draft if exists, else use template
+            setCode(problem.submission?.draft || templates[language]);
         }
     }, [language, problem]);
 
     const handleSubmit = () => {
         const timeSpent = Math.floor((Date.now() - startTime) / 1000);
         onSubmit({ code, language, timeSpent });
+    };
+
+    const handleEditorChange = (value) => {
+        const newCode = value || '';
+        setCode(newCode);
+        if (onCodeChange) onCodeChange(newCode);
     };
 
     const getTimeSpent = () => {
@@ -49,8 +56,8 @@ const CodingEditor = ({ problem, onSubmit, isSubmitting }) => {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-bold text-gray-900">{problem.title}</h2>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
-                            problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
+                        problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
                         }`}>
                         {problem.difficulty}
                     </span>
@@ -156,7 +163,7 @@ const CodingEditor = ({ problem, onSubmit, isSubmitting }) => {
                     height="500px"
                     language={language === 'cpp' ? 'cpp' : language}
                     value={code}
-                    onChange={(value) => setCode(value || '')}
+                    onChange={handleEditorChange}
                     theme="vs-dark"
                     options={{
                         minimap: { enabled: false },

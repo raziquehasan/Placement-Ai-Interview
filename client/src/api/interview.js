@@ -84,6 +84,16 @@ export const getCodingResults = async (id) => {
     return response.data.data;
 };
 
+export const saveCodingDraft = async (id, draftData) => {
+    const response = await axios.post(`/interviews/${id}/coding/draft`, draftData);
+    return response.data;
+};
+
+export const logCodingIntegrity = async (id, signalType) => {
+    const response = await axios.post(`/interviews/${id}/coding/integrity`, { type: signalType });
+    return response.data;
+};
+
 // 6. Final Hiring Report - Phase 2.4
 export const getHiringReport = async (id) => {
     const response = await axios.get(`/interviews/${id}/report`);

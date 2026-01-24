@@ -8,6 +8,7 @@ import Feedback from '../pages/Feedback';
 import ResumeAnalysis from '../pages/ResumeAnalysis';
 import TechnicalRound from '../pages/TechnicalRound'; // Phase 2.1
 import HRRound from '../pages/HRRound'; // Phase 2.2
+import CodingRound from '../pages/CodingRound'; // Phase 2.3+
 import InterviewResults from '../pages/InterviewResults'; // Phase 2.1
 import HiringReport from '../pages/HiringReport'; // Phase 2.4
 import ProtectedRoute from './ProtectedRoute';
@@ -87,6 +88,15 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute>
                         <HRRound />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/interview/:id/coding"
+                element={
+                    <ProtectedRoute>
+                        <CodingRound />
                     </ProtectedRoute>
                 }
             />

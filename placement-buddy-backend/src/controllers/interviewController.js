@@ -766,22 +766,52 @@ const startCodingRound = async (req, res, next) => {
 
         if (!codingRound) {
             const { generateCodingProblem } = require('../services/aiInterviewService');
-
-            // Get resume skills
             const resumeSkills = interview.resumeId.parsedData?.skills?.join(', ') || 'General programming';
 
-            // Generate coding problem
-            const problemData = await generateCodingProblem({
-                role: interview.role,
-                difficulty: interview.difficulty,
-                resumeSkills,
-                questionNumber: 1
-            });
+            logger.info(`🚀 Starting Multi-Problem Coding Round for Interview ${id}`);
+
+            // Generate 3 problems: Easy, Medium, Hard
+            const difficulties = ['Easy', 'Medium', 'Hard'];
+            const problemPromises = difficulties.map((diff, index) =>
+                generateCodingProblem({
+                    role: interview.role,
+                    difficulty: diff,
+                    resumeSkills,
+                    questionNumber: index + 1
+                })
+            );
+
+            const generatedProblems = await Promise.all(problemPromises);
+
+            const problems = generatedProblems.map((p, index) => ({
+                problemId: `p${index + 1}`,
+                title: p.title,
+                difficulty: p.difficulty,
+                description: p.description,
+                inputFormat: p.inputFormat,
+                outputFormat: p.outputFormat,
+                constraints: p.constraints,
+                sampleTestCases: p.sampleTestCases,
+                hiddenTestCases: p.hiddenTestCases,
+                timeComplexityTarget: p.timeComplexityTarget,
+                spaceComplexityTarget: p.spaceComplexityTarget,
+                hints: p.hints,
+                evaluation: {
+                    status: 'not_started'
+                }
+            }));
+
+            // Set a 60-minute deadline from now
+            const deadline = new Date();
+            deadline.setMinutes(deadline.getMinutes() + 60);
 
             codingRound = await CodingRound.create({
                 interviewId: interview._id,
-                problem: problemData,
-                status: 'in_progress'
+                problems,
+                totalProblems: problems.length,
+                status: 'in_progress',
+                startedAt: new Date(),
+                deadline
             });
 
             interview.codingRound = codingRound._id;
@@ -789,18 +819,24 @@ const startCodingRound = async (req, res, next) => {
             await interview.save();
         }
 
-        return successResponse(res, 200, 'Coding round started successfully', {
+        return successResponse(res, 200, 'Coding round initialized', {
             roundId: codingRound._id,
-            problem: {
-                title: codingRound.problem.title,
-                difficulty: codingRound.problem.difficulty,
-                description: codingRound.problem.description,
-                inputFormat: codingRound.problem.inputFormat,
-                outputFormat: codingRound.problem.outputFormat,
-                constraints: codingRound.problem.constraints,
-                sampleTestCases: codingRound.problem.sampleTestCases,
-                hints: codingRound.problem.hints
-            }
+            status: codingRound.status,
+            currentProblemIndex: codingRound.currentProblemIndex,
+            totalProblems: codingRound.totalProblems,
+            deadline: codingRound.deadline,
+            problems: codingRound.problems.map(p => ({
+                problemId: p.problemId,
+                title: p.title,
+                difficulty: p.difficulty,
+                description: p.description,
+                inputFormat: p.inputFormat,
+                outputFormat: p.outputFormat,
+                constraints: p.constraints,
+                sampleTestCases: p.sampleTestCases,
+                hints: p.hints,
+                status: p.evaluation.status
+            }))
         });
 
     } catch (error) {
@@ -821,7 +857,7 @@ const startCodingRound = async (req, res, next) => {
 const submitCode = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { code, language, timeSpent } = req.body;
+        const { code, language, timeSpent, problemId } = req.body;
         const userId = req.user._id;
 
         const interview = await Interview.findById(id).populate('codingRound');
@@ -834,32 +870,41 @@ const submitCode = async (req, res, next) => {
         }
 
         const codingRound = interview.codingRound;
+        const problemIndex = codingRound.problems.findIndex(p => p.problemId === problemId);
+
+        if (problemIndex === -1) return errorResponse(res, 404, 'Problem not found');
+        if (problemIndex !== codingRound.currentProblemIndex) return errorResponse(res, 400, 'Please solve problems in sequence');
+
+        const problem = codingRound.problems[problemIndex];
 
         // Save submission
-        codingRound.submission = {
+        problem.submission = {
             code,
             language: language || 'javascript',
             submittedAt: new Date(),
             timeSpent: timeSpent || 0
         };
-        codingRound.status = 'submitted';
+
+        problem.evaluation.status = 'tle'; // Placeholder until worker updates it
+        codingRound.status = 'evaluating';
         await codingRound.save();
 
         // Queue test execution and code review
         await interviewQueue.add('execute-code-tests', {
             roundId: codingRound._id,
+            problemId,
             code,
             language: language || 'javascript'
         }, {
             priority: 1
         });
 
-        logger.info(`Code submitted for interview ${id} - Queued for execution`);
+        logger.info(`Code submitted for problem ${problemId} (Interview ${id}) - Queued for execution`);
 
         return successResponse(res, 200, 'Code submitted successfully', {
             submitted: true,
             evaluating: true,
-            message: 'Your code is being tested and reviewed...'
+            problemId
         });
 
     } catch (error) {
@@ -870,6 +915,54 @@ const submitCode = async (req, res, next) => {
             message: 'Server error during code submission',
             error: error.message
         });
+    }
+};
+
+/**
+ * Save Code Draft (Auto-save)
+ * POST /api/v1/interviews/:id/coding/draft
+ */
+const saveDraft = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { code, problemId } = req.body;
+
+        const interview = await Interview.findById(id).populate('codingRound');
+        if (!interview || !interview.codingRound) return errorResponse(res, 404, 'Round not found');
+
+        const codingRound = interview.codingRound;
+        const problem = codingRound.problems.find(p => p.problemId === problemId);
+        if (problem) {
+            problem.submission.draft = code;
+            await codingRound.save();
+        }
+
+        return successResponse(res, 200, 'Draft saved');
+    } catch (error) {
+        return errorResponse(res, 500, error.message);
+    }
+};
+
+/**
+ * Log Integrity Signal
+ * POST /api/v1/interviews/:id/coding/integrity
+ */
+const logIntegrity = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type } = req.body; // 'tab_switch' | 'paste'
+
+        const interview = await Interview.findById(id).populate('codingRound');
+        if (!interview || !interview.codingRound) return errorResponse(res, 404, 'Round not found');
+
+        const codingRound = interview.codingRound;
+        if (type === 'tab_switch') codingRound.integrity.tabSwitches += 1;
+        if (type === 'paste') codingRound.integrity.pastedCount += 1;
+
+        await codingRound.save();
+        return successResponse(res, 200, 'Signal logged');
+    } catch (error) {
+        return errorResponse(res, 500, error.message);
     }
 };
 
@@ -893,37 +986,31 @@ const getCodingResults = async (req, res, next) => {
 
         const codingRound = interview.codingRound;
 
-        // Check if evaluation is complete
-        if (codingRound.status !== 'completed') {
+        // Check if current problem evaluation is complete
+        // We consider it evaluated if status is not 'evaluating'
+        const evaluated = codingRound.status !== 'evaluating';
+
+        if (!evaluated) {
             return successResponse(res, 200, 'Evaluation in progress', {
                 evaluated: false,
                 status: codingRound.status
             });
         }
 
-        // Return results
-        return successResponse(res, 200, 'Evaluation complete', {
+        // Return aggregated results if completed, or just the status
+        return successResponse(res, 200, 'Coding status retrieved', {
             evaluated: true,
-            testResults: {
-                totalTests: codingRound.testResults.totalTests,
-                passedTests: codingRound.testResults.passedTests,
-                failedTests: codingRound.testResults.failedTests,
-                testPassRate: codingRound.testResults.testPassRate,
-                results: codingRound.testResults.results
-            },
-            codeReview: {
-                correctness: codingRound.codeReview.correctness,
-                efficiency: codingRound.codeReview.efficiency,
-                readability: codingRound.codeReview.readability,
-                edgeCases: codingRound.codeReview.edgeCases,
-                timeComplexity: codingRound.codeReview.timeComplexity,
-                spaceComplexity: codingRound.codeReview.spaceComplexity,
-                strengths: codingRound.codeReview.strengths,
-                improvements: codingRound.codeReview.improvements,
-                feedback: codingRound.codeReview.feedback,
-                overallScore: codingRound.codeReview.overallScore
-            },
-            finalScore: codingRound.finalScore
+            status: codingRound.status,
+            totalScore: codingRound.totalScore,
+            problemsSolved: codingRound.solvedProblems,
+            totalProblems: codingRound.totalProblems,
+            problems: codingRound.problems.map(p => ({
+                problemId: p.problemId,
+                title: p.title,
+                status: p.evaluation.status,
+                score: p.evaluation.score,
+                testPassRate: p.testResults.testPassRate
+            }))
         });
 
     } catch (error) {
@@ -1004,6 +1091,8 @@ module.exports = {
     getHRStatus,
     startCodingRound,
     submitCode,
+    saveDraft,
+    logIntegrity,
     getCodingResults,
     getHiringReport,
     getInterview,

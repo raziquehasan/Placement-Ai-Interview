@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 /**
- * Coding Round Schema - Phase 2.3
- * Stores coding interview problem, submission, and evaluation
+ * Coding Round Schema - Phase 2.3+
+ * Stores multiple coding interview problems, submissions, and evaluations
  */
 const CodingRoundSchema = new mongoose.Schema({
     interviewId: {
@@ -12,8 +12,9 @@ const CodingRoundSchema = new mongoose.Schema({
         index: true
     },
 
-    // Problem Details
-    problem: {
+    // Multi-Problem Structure
+    problems: [{
+        problemId: { type: String, required: true },
         title: { type: String, required: true },
         difficulty: {
             type: String,
@@ -24,8 +25,6 @@ const CodingRoundSchema = new mongoose.Schema({
         inputFormat: String,
         outputFormat: String,
         constraints: [String],
-
-        // Test Cases
         sampleTestCases: [{
             input: String,
             output: String,
@@ -35,111 +34,97 @@ const CodingRoundSchema = new mongoose.Schema({
             input: String,
             output: String
         }],
-
-        // Complexity Targets
         timeComplexityTarget: String,
         spaceComplexityTarget: String,
-        hints: [String]
-    },
+        hints: [String],
 
-    // Code Submission
-    submission: {
-        code: String,
-        language: {
-            type: String,
-            enum: ['javascript', 'python', 'java', 'cpp', 'c'],
-            default: 'javascript'
+        // Submission per problem
+        submission: {
+            code: String,
+            language: String,
+            submittedAt: Date,
+            timeSpent: Number, // in seconds
+            draft: String // Auto-save draft
         },
-        submittedAt: Date,
-        timeSpent: Number // in seconds
+
+        // Test Results per problem
+        testResults: {
+            totalTests: { type: Number, default: 0 },
+            passedTests: { type: Number, default: 0 },
+            testPassRate: { type: Number, default: 0 },
+            results: [{
+                testCase: String,
+                input: String,
+                expectedOutput: String,
+                actualOutput: String,
+                passed: Boolean,
+                executionTime: Number,
+                memory: Number,
+                error: String,
+                verdict: {
+                    type: String,
+                    enum: ['Accepted', 'Wrong Answer', 'TLE', 'Runtime Error', 'Partial'],
+                }
+            }]
+        },
+
+        // Evaluation per problem
+        evaluation: {
+            score: { type: Number, min: 0, max: 10 },
+            timeComplexity: String,
+            spaceComplexity: String,
+            feedback: String,
+            improvements: [String],
+            status: {
+                type: String,
+                enum: ['not_started', 'accepted', 'partial', 'tle', 'failed'],
+                default: 'not_started'
+            }
+        }
+    }],
+
+    // Round Progress
+    totalProblems: { type: Number, default: 3 },
+    solvedProblems: { type: Number, default: 0 },
+    currentProblemIndex: { type: Number, default: 0 },
+
+    // Adaptive Logic
+    isAdaptive: { type: Boolean, default: true },
+    expansionTriggered: { type: Boolean, default: false },
+
+    // Integrity signals
+    integrity: {
+        tabSwitches: { type: Number, default: 0 },
+        pastedCount: { type: Number, default: 0 },
+        lostFocusTime: { type: Number, default: 0 } // in ms
     },
 
-    // Test Execution Results
-    testResults: {
-        totalTests: { type: Number, default: 0 },
-        passedTests: { type: Number, default: 0 },
-        failedTests: { type: Number, default: 0 },
-        testPassRate: { type: Number, default: 0 }, // percentage
-
-        // Individual test results
-        results: [{
-            testCase: String,
-            input: String,
-            expectedOutput: String,
-            actualOutput: String,
-            passed: Boolean,
-            executionTime: Number, // milliseconds
-            memory: Number, // KB
-            error: String
-        }],
-
-        executedAt: Date
-    },
-
-    // AI Code Review
-    codeReview: {
-        correctness: { type: Number, min: 0, max: 10 },
-        efficiency: { type: Number, min: 0, max: 10 },
-        readability: { type: Number, min: 0, max: 10 },
-        edgeCases: { type: Number, min: 0, max: 10 },
-
-        timeComplexity: String,
-        spaceComplexity: String,
-
-        strengths: [String],
-        improvements: [String],
-        bugs: [String],
-        feedback: String,
-
-        overallScore: { type: Number, min: 0, max: 10 }, // AI quality score
-        reviewedAt: Date
-    },
-
-    // Final Scores
-    codeQualityScore: { type: Number, min: 0, max: 10, default: 0 },
-    finalScore: { type: Number, min: 0, max: 100, default: 0 },
-
-    // Status & Timing
+    // Timing
     status: {
         type: String,
-        enum: ['not_started', 'in_progress', 'submitted', 'evaluating', 'completed'],
+        enum: ['not_started', 'in_progress', 'evaluating', 'completed'],
         default: 'not_started',
         index: true
     },
     startedAt: { type: Date, default: Date.now },
+    deadline: Date,
     completedAt: Date,
-    duration: Number // in minutes
+    totalScore: { type: Number, default: 0 }
 
 }, { timestamps: true });
 
-// Calculate final coding score
-CodingRoundSchema.methods.calculateFinalScore = function () {
-    if (!this.testResults || !this.codeReview) {
-        return 0;
-    }
+// MARK: Methods
 
-    const testPassRate = this.testResults.testPassRate || 0;
-    const codeQuality = this.codeReview.overallScore || 0;
+CodingRoundSchema.methods.calculateOverallScore = function () {
+    if (!this.problems || this.problems.length === 0) return 0;
 
-    // Final Score = (Test Pass Rate * 0.5) + (Code Quality * 10 * 0.5)
-    this.finalScore = (testPassRate * 0.5) + (codeQuality * 10 * 0.5);
-    this.codeQualityScore = codeQuality;
+    // Average of individual problem scores (0-10) scaled to 0-100
+    const totalPossiblePoints = this.problems.length * 10;
+    const earnedPoints = this.problems.reduce((sum, p) => sum + (p.evaluation?.score || 0), 0);
 
-    return this.finalScore;
-};
-
-// Mark round as complete
-CodingRoundSchema.methods.completeRound = function () {
-    this.status = 'completed';
-    this.completedAt = new Date();
-
-    if (this.startedAt) {
-        this.duration = Math.round((this.completedAt - this.startedAt) / 60000);
-    }
-
-    this.calculateFinalScore();
+    this.totalScore = Math.round((earnedPoints / totalPossiblePoints) * 100);
+    return this.totalScore;
 };
 
 const CodingRound = mongoose.model('CodingRound', CodingRoundSchema);
-
 module.exports = CodingRound;

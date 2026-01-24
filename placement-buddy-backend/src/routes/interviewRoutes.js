@@ -118,6 +118,8 @@ router.post('/:id/coding/submit', authenticate, interviewController.submitCode);
  * @access  Private
  */
 router.get('/:id/coding/results', authenticate, interviewController.getCodingResults);
+router.post('/:id/coding/draft', authenticate, interviewController.saveDraft);
+router.post('/:id/coding/integrity', authenticate, interviewController.logIntegrity);
 
 // ============================================
 // Phase 2.4: Final Hiring Report Endpoints
