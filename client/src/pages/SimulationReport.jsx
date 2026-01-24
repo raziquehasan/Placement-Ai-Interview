@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
-    FiTrophy,
     FiTrendingUp,
     FiAward,
     FiBookOpen,
@@ -184,7 +183,7 @@ const SimulationReport = () => {
 
                         <div className="bg-slate-900/40 border border-slate-800 p-10 rounded-[3rem]">
                             <h3 className="text-xl font-bold flex items-center gap-3 mb-8">
-                                <FiTrophy className="text-emerald-400" />
+                                <FiAward className="text-emerald-400" />
                                 Recommended Skill Drills
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
