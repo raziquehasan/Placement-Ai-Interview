@@ -21,6 +21,7 @@ const resumeRoutes = require('./routes/resumeRoutes');
 const interviewRoutes = require('./routes/interviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const simulationRoutes = require('./routes/simulationRoutes');
 
 // Initialize Express app
 const app = express();
@@ -107,6 +108,7 @@ app.use('/api/v1/resumes', resumeRoutes);
 app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
+app.use('/api/v1/simulation', simulationRoutes);
 
 // Backward compatibility (optional - can be removed later)
 app.use('/api/auth', authRoutes);

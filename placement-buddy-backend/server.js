@@ -58,3 +58,6 @@ process.on('SIGTERM', () => {
         logger.info('✅ Process terminated');
     });
 });
+// server restart
+// redis updated
+// server restart log

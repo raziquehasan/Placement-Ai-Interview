@@ -10,31 +10,28 @@
 
 ---
 
-## ✨ New Premium SaaS Update
-Our latest version features a complete architectural and visual overhaul:
-- 🚀 **High-Conversion Landing Page**: Interactive Hero, Feature Grid, and 3-step visual workflow.
-- ✨ **SaaS Visuals**: Glassmorphism cards, animated background blobs, and **Plus Jakarta Sans** typography.
-- 🎬 **Smooth Animations**: Every interaction is powered by **Framer Motion** for a funded-startup feel.
-- 🔐 **Security Hardening**: Secure Firebase Admin SDK paths, hardened `.gitignore`, and full security audit.
-
 ---
 
-## 🌟 Core Features
+## 🏆 Phase 2: Hiring Simulation System
+Our latest update introduces the **Hiring Simulation GAUNTLET**—a full-cycle ecosystem that mirrors actual corporate hiring pipelines.
 
-### 🤖 AI-Powered Interview System
-- **Cognitive Coaching**: Role-specific, difficulty-adaptive questions powered by **Google Gemini**.
-- **Multi-Round Pipeline**: Resume Screening (ATS) → Technical Rounds → HR Behavioral Rounds → Final Hiring Report.
-- **STAR Method Analysis**: Deep behavioral interview evaluation for soft-skill detection.
-- **Instant Learning Roadmaps**: AI-generated 30/60/90 day improvement plans based on your weaknesses.
+### 🏢 Realistic Company Blueprints
+- **Targeted Simulations**: Pick a company (Google, Amazon, TCS) and experience their exact round structure (OA → Technical → Behavioral → Panel).
+- **Tier-Based Calibration**: Difficulty and question patterns automatically adjust based on the company's market tier.
 
-### 💻 Real Code Execution
-- **Judge0 Integration**: Sandboxed code execution in 5+ languages.
-- **Monaco Editor**: A full VS Code experience in the browser.
-- **AI Code Review**: Automated correctness, efficiency, and edge-case analysis.
+### 🎭 Multi-Persona AI Panel
+- **Character AI Agents**: Interact with multiple AI personas simultaneously.
+  - **Lead Engineer (@lead)**: Drills technical depth and optimization.
+  - **Behavioral Judge (@behavioral)**: Evaluates culture fit and leadership principles.
+  - **Silent Scorer (@scorer)**: Analyzes integrity and provides normalized feedback.
+- **Interactive Chat**: A sophisticated, character-driven chat experience with real-time AI deliberation.
 
-### 📈 Intelligent Hiring Decisions
-- **Weighted Scoring**: Multi-vector analysis (Technical 40% | HR 25% | Coding 35%).
-- **4-Tier Decisions**: Strong Hire, Hire, Consider, or Reject with data-driven confidence.
+### 🧠 Post-Simulation Intelligence
+- **Offer Probability Engine**: Calculates your hiring chance by normalizing scores across different rounds and penalizing integrity alerts.
+- **AI Mentor Coach**: Receive a **4-week personalized study roadmap** and drill sets to bridge your specific skill gaps.
+- **Recruiter Dashboard**: High-level analytics for admins to track funnel drop-offs, candidate rankings, and behavioral metrics.
+
+---
 
 ---
 

@@ -49,7 +49,7 @@ const Navbar = () => {
 
                 {/* Desktop Links - Only show on marketing page */}
                 <div className="hidden md:flex items-center gap-8">
-                    {isMarketingPage && navLinks.map((link) => (
+                    {isMarketingPage ? navLinks.map((link) => (
                         <a
                             key={link.name}
                             href={link.href}
@@ -57,7 +57,14 @@ const Navbar = () => {
                         >
                             {link.name}
                         </a>
-                    ))}
+                    )) : (
+                        <>
+                            <Link to="/dashboard" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors">Dashboard</Link>
+                            <Link to="/simulation" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-primary-600 transition-colors flex items-center gap-1">
+                                Simulations <Sparkles size={14} className="text-indigo-500" />
+                            </Link>
+                        </>
+                    )}
                 </div>
 
                 {/* Desktop CTAs */}

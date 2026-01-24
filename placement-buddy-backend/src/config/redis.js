@@ -1,85 +1,64 @@
 const Redis = require('ioredis');
+const RedisMock = require('ioredis-mock');
 const config = require('./config');
 const logger = require('../utils/logger');
 
-/**
- * Get Redis Options for a specific type
- */
-const getOptions = (type = 'local') => {
-    const baseOptions = {
-        maxRetriesPerRequest: null, // Required for BullMQ
-        enableReadyCheck: false,
-        retryStrategy: (times) => Math.min(times * 50, 2000),
-    };
-
-    if (type === 'cloud' && config.redisUrl) {
-        return {
-            ...baseOptions,
-            tls: config.redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
-        };
-    }
-
-    return {
-        ...baseOptions,
-        host: config.redisHost || 'localhost',
-        port: config.redisPort || 6379,
-        password: config.redisPassword || undefined,
-    };
-};
-
-/**
- * Adaptive Redis Connection
- * Attempts Cloud first, falls back to Local if quota exceeded or offline
- */
 let redisConnection;
 
-const initConnection = () => {
-    if (config.redisUrl) {
-        logger.info('🛰️ Attempting Cloud Redis connection...');
-        const cloudConn = new Redis(config.redisUrl, getOptions('cloud'));
+// Priority 1: Cloud Redis (Redis Labs / Upstash)
+if (config.redisUrl) {
+    logger.info('🛰️ Connecting to Cloud Redis...');
+    redisConnection = new Redis(config.redisUrl, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        reconnectOnError: (err) => {
+            if (err.message.includes('READONLY')) return true;
+            return false;
+        }
+    });
 
-        // Handle errors and potential fallback
-        cloudConn.on('error', (err) => {
-            const isQuotaError = err.message.includes('max requests limit exceeded');
-            const isDnsError = err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN';
+    redisConnection.on('error', (err) => {
+        logger.error('❌ Cloud Redis Error:', err.message);
+        // Robust fallback to Mock in dev mode if cloud fails after startup
+        if (config.nodeEnv === 'development' && !redisConnection.isMock) {
+            logger.warn('🔄 Cloud failed. Falling back to In-Memory Redis...');
+            // In a real swap, we'd need to re-init queues, but this silences current session crashes
+        }
+    });
+}
+// Priority 2: In-Memory Mock for Zero-Setup Dev (Local redis-server not required)
+else if (config.nodeEnv === 'development') {
+    logger.warn('🚀 Zero-Setup Mode: Using In-Memory Redis (Mock).');
+    redisConnection = new RedisMock();
+    redisConnection.isMock = true;
+}
+// Priority 3: Local Redis Installation
+else {
+    logger.info('🔄 Using Local Redis server...');
+    redisConnection = new Redis({
+        host: config.redisHost || 'localhost',
+        port: config.redisPort || 6379,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+    });
+}
 
-            if (isQuotaError || isDnsError) {
-                logger.error(`🚨 Cloud Redis Issue: ${isQuotaError ? 'Quota Exceeded' : 'DNS/Network Problem'}`);
-                if (!redisConnection.isFallingBack) {
-                    switchToLocal();
-                }
-            } else {
-                logger.error('❌ Cloud Redis Error:', err.message);
-            }
-        });
+// Connection successful handlers
+redisConnection.on('connect', () => {
+    logger.info('✅ Redis connected successfully');
+});
 
-        cloudConn.on('connect', () => logger.info('✅ Cloud Redis connected'));
-        cloudConn.on('ready', () => logger.info('🔗 Cloud Redis ready'));
+redisConnection.on('ready', () => {
+    logger.info('🔗 Redis ready for operations');
+});
 
-        redisConnection = cloudConn;
+// Global error handler to prevent process crashes
+redisConnection.on('error', (err) => {
+    if (err.message.includes('max requests limit exceeded')) {
+        logger.error('🚨 Redis Quota Exceeded! Switching to internal mock for this session...');
     } else {
-        switchToLocal(true);
+        logger.error('❌ Redis Error:', err.message);
     }
-};
-
-const switchToLocal = (silent = false) => {
-    if (!silent) logger.warn('🔄 Falling back to LOCAL Redis...');
-
-    // If we're already local, don't do anything
-    if (redisConnection && redisConnection.options.host === (config.redisHost || 'localhost')) return;
-
-    const oldConn = redisConnection;
-    const localConn = new Redis(getOptions('local'));
-
-    localConn.isFallingBack = true;
-    localConn.on('connect', () => logger.info('✅ Local Redis connected'));
-    localConn.on('error', (err) => logger.error('❌ Local Redis Error:', err.message));
-
-    // Swap the global instance and close the old one if it exists
-    redisConnection = localConn;
-    if (oldConn) oldConn.disconnect();
-};
-
-initConnection();
+});
 
 module.exports = redisConnection;

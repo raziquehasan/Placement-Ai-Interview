@@ -9,6 +9,7 @@ const logger = require('../utils/logger');
 const resumeWorker = require('./processors/resumeProcessor');
 const feedbackWorker = require('./processors/feedbackProcessor');
 const interviewWorker = require('./processors/interviewProcessor'); // Phase 2.1
+const simulationWorker = require('./processors/simulationProcessor'); // Phase 2.2
 
 logger.info('🚀 All workers initialized and ready');
 
@@ -18,6 +19,7 @@ process.on('SIGTERM', async () => {
     await resumeWorker.close();
     await feedbackWorker.close();
     await interviewWorker.close();
+    await simulationWorker.close();
     process.exit(0);
 });
 
@@ -26,11 +28,13 @@ process.on('SIGINT', async () => {
     await resumeWorker.close();
     await feedbackWorker.close();
     await interviewWorker.close();
+    await simulationWorker.close();
     process.exit(0);
 });
 
 module.exports = {
     resumeWorker,
     feedbackWorker,
-    interviewWorker
+    interviewWorker,
+    simulationWorker
 };

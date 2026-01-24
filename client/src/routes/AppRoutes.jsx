@@ -11,6 +11,12 @@ import HRRound from '../pages/HRRound'; // Phase 2.2
 import CodingRound from '../pages/CodingRound'; // Phase 2.3+
 import InterviewResults from '../pages/InterviewResults'; // Phase 2.1
 import HiringReport from '../pages/HiringReport'; // Phase 2.4
+import SimulationDashboard from '../pages/SimulationDashboard'; // Phase 2.5
+import SimulationJourney from '../pages/SimulationJourney'; // Phase 2.5
+import OnlineAssessment from '../pages/OnlineAssessment'; // Phase 2.5
+import SimulationInterview from '../pages/SimulationInterview'; // Phase 2.5
+import SimulationReport from '../pages/SimulationReport'; // Phase 2.5
+import RecruiterDashboard from '../pages/RecruiterDashboard'; // Phase 2.5
 import ProtectedRoute from './ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 
@@ -118,7 +124,56 @@ const AppRoutes = () => {
                 }
             />
 
-            {/* Phase 2.4: Hiring Report */}
+            {/* Phase 2.5: Hiring Simulations */}
+            <Route
+                path="/simulation"
+                element={
+                    <ProtectedRoute>
+                        <SimulationDashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/simulation/:id/journey"
+                element={
+                    <ProtectedRoute>
+                        <SimulationJourney />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/simulation/session/:id/oa"
+                element={
+                    <ProtectedRoute>
+                        <OnlineAssessment />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/simulation/session/:id/panel"
+                element={
+                    <ProtectedRoute>
+                        <SimulationInterview />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/simulation/session/:id/report"
+                element={
+                    <ProtectedRoute>
+                        <SimulationReport />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/simulation/admin/dashboard"
+                element={
+                    <ProtectedRoute>
+                        <RecruiterDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
             <Route
                 path="/report/:id"
                 element={
